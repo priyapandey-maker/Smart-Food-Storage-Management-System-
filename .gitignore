@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+env/
+venv/
+ENV/
+
+# Database
+backend/storage.db
+*.db
+*.sqlite3
+
+# Pytest / Cache
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Node / Frontend
+node_modules/
+frontend/node_modules/
+frontend/dist/
+dist/
+*.log
+
+# Environment variables & secrets (keep .env.example tracked)
+.env
+.env*.local
+frontend/.env
