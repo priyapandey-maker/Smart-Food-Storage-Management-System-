@@ -93,7 +93,7 @@ export default function Sidebar({ isOpen, onClose }) {
 
         {/* Sidebar Footer */}
         <div className="sidebar-footer">
-          <p>Phase 3 • Frontend Foundation</p>
+          <p>FreshGuard • v1.0.0</p>
         </div>
       </aside>
     </>

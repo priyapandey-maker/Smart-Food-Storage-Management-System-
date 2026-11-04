@@ -2785,3 +2785,36 @@ html, body {
     gap: 0.35rem;
   }
 }
+
+@media (max-width: 480px) {
+  .content-container {
+    padding: 1rem 0.75rem;
+  }
+
+  .page-heading-text h2 {
+    font-size: 1.35rem;
+  }
+
+  .metric-number {
+    font-size: 1.85rem;
+  }
+
+  .eval-temp-number {
+    font-size: 2.25rem;
+  }
+
+  .modal-container {
+    margin: 0.5rem;
+    width: calc(100% - 1rem);
+    padding: 1.25rem;
+  }
+
+  .btn {
+    padding: 0.55rem 0.95rem;
+    font-size: 0.85rem;
+  }
+
+  .main-wrapper {
+    overflow-x: hidden;
+  }
+}
