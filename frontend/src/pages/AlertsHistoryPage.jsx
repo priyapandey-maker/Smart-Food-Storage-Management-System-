@@ -1,53 +1,115 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import PageHeading from '../components/PageHeading';
-import Card from '../components/Card';
-import StatusBadge from '../components/StatusBadge';
 import LoadingState from '../components/LoadingState';
 import ErrorState from '../components/ErrorState';
 import { getAlerts, getTemperatureHistory, getInventory } from '../services/api';
 
 /**
- * Format ISO datetime string to user-friendly local date & time.
+ * Format ISO datetime string to exact reference screenshot format:
+ * "Nov 4, 2026 • 04:15 PM"
  */
-function formatDateTime(isoString) {
+function formatHistoryDateTime(isoString) {
   if (!isoString) return '—';
   try {
     const d = new Date(isoString);
-    return d.toLocaleString(undefined, {
+    const datePart = d.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
+    });
+    const timePart = d.toLocaleTimeString('en-US', {
       hour: '2-digit',
       minute: '2-digit',
+      hour12: true,
     });
+    return `${datePart} • ${timePart}`;
   } catch {
     return isoString;
   }
 }
 
 /**
- * Format date string (YYYY-MM-DD) to friendly format.
+ * Formats a temperature in Celsius.
  */
-function formatDate(dateString) {
-  if (!dateString) return '—';
-  try {
-    const [year, month, day] = dateString.split('-');
-    const d = new Date(Number(year), Number(month) - 1, Number(day));
-    return d.toLocaleDateString(undefined, {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
-  } catch {
-    return dateString;
+function formatTemp(celsius) {
+  if (celsius === null || celsius === undefined || isNaN(celsius)) return '—';
+  return `${Number(celsius).toFixed(1)}°C`;
+}
+
+/**
+ * Contextual category icon, color, and condition for preservation cards.
+ */
+function getCategoryVisual(category = '', storageType = '') {
+  const cat = `${category} ${storageType}`.toLowerCase();
+  if (cat.includes('dairy') || cat.includes('milk')) {
+    return {
+      emoji: '🥛',
+      color: '#E0F2FE',
+      defaultCondition: 'Refrigerator • ≤ 4°C',
+    };
   }
+  if (cat.includes('meat') || cat.includes('poultry') || cat.includes('chicken') || cat.includes('beef')) {
+    return {
+      emoji: '🥩',
+      color: '#FEE2E2',
+      defaultCondition: 'Refrigerator • ≤ 4°C',
+    };
+  }
+  if (cat.includes('produce') || cat.includes('lettuce') || cat.includes('vegetable') || cat.includes('salad')) {
+    return {
+      emoji: '🥬',
+      color: '#DCFCE7',
+      defaultCondition: 'Refrigerator • 4–7°C',
+    };
+  }
+  if (cat.includes('frozen')) {
+    return {
+      emoji: '❄️',
+      color: '#E0F2FE',
+      defaultCondition: 'Freezer • ≤ -18°C',
+    };
+  }
+  if (cat.includes('seafood') || cat.includes('fish') || cat.includes('salmon')) {
+    return {
+      emoji: '🐟',
+      color: '#CFFAFE',
+      defaultCondition: 'Refrigerator • ≤ 4°C',
+    };
+  }
+  if (cat.includes('egg')) {
+    return {
+      emoji: '🥚',
+      color: '#DCFCE7',
+      defaultCondition: 'Refrigerator • ≤ 4°C',
+    };
+  }
+  if (cat.includes('pantry') || cat.includes('dry') || cat.includes('rice') || cat.includes('grain')) {
+    return {
+      emoji: '🌾',
+      color: '#FEF9C3',
+      defaultCondition: 'Pantry • Cool & Dry',
+    };
+  }
+  if (cat.includes('leftover')) {
+    return {
+      emoji: '🍲',
+      color: '#FEF3C7',
+      defaultCondition: 'Refrigerator • ≤ 4°C',
+    };
+  }
+  return {
+    emoji: '📦',
+    color: '#F1F5F9',
+    defaultCondition:
+      storageType === 'FROZEN'
+        ? 'Freezer • ≤ -18°C'
+        : storageType === 'REFRIGERATED'
+          ? 'Refrigerator • ≤ 4°C'
+          : 'Pantry • Cool & Dry',
+  };
 }
 
 export default function AlertsHistoryPage() {
-  // Navigation tab: 'alerts' or 'history'
-  const [activeTab, setActiveTab] = useState('alerts');
-
   // Alerts data state
   const [alertsData, setAlertsData] = useState(null);
   const [isLoadingAlerts, setIsLoadingAlerts] = useState(true);
@@ -61,18 +123,26 @@ export default function AlertsHistoryPage() {
   // Available inventory items for history filter
   const [inventoryItems, setInventoryItems] = useState([]);
 
-  // History filters
+  // Primary filters matching reference image
+  const [readingTypeFilter, setReadingTypeFilter] = useState('ALL'); // 'ALL' | 'MANUAL' | 'SIMULATED'
+  const [timeRange, setTimeRange] = useState('7'); // '7' | '30' | 'all'
+
+  // Secondary filters (status & item)
   const [selectedStatus, setSelectedStatus] = useState('ALL');
   const [selectedInventoryId, setSelectedInventoryId] = useState('ALL');
-  const [recordLimit, setRecordLimit] = useState(50);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
-  // History expanded row tracking
+  // Expanded row tracking for history table
   const [expandedHistoryIds, setExpandedHistoryIds] = useState(new Set());
 
-  // Global refresh indicator
+  // Collapsible active warning details
+  const [showWarningDetails, setShowWarningDetails] = useState(false);
+  const [showExpiryDetails, setShowExpiryDetails] = useState(false);
+
+  // Refreshing state
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // 1. Fetch alerts data
+  // 1. Fetch alerts
   const loadAlerts = async (silent = false) => {
     if (!silent) setIsLoadingAlerts(true);
     setAlertsError(null);
@@ -86,13 +156,13 @@ export default function AlertsHistoryPage() {
     }
   };
 
-  // 2. Fetch history records with current filters
+  // 2. Fetch history records from backend
   const loadHistory = async (silent = false) => {
     if (!silent) setIsLoadingHistory(true);
     setHistoryError(null);
     try {
       const params = {
-        limit: Number(recordLimit),
+        limit: 100,
       };
       if (selectedStatus !== 'ALL') {
         params.status = selectedStatus;
@@ -109,13 +179,13 @@ export default function AlertsHistoryPage() {
     }
   };
 
-  // 3. Load active inventory items for history filter dropdown
+  // 3. Load active inventory items for filter dropdown
   const loadFilterItems = async () => {
     try {
       const items = await getInventory();
       setInventoryItems(items || []);
     } catch {
-      // Non-critical, filter dropdown will just omit custom list
+      // Non-critical
     }
   };
 
@@ -126,10 +196,10 @@ export default function AlertsHistoryPage() {
     loadFilterItems();
   }, []);
 
-  // Reload history when filters change
+  // Reload history when status or inventory filter changes
   useEffect(() => {
     loadHistory(false);
-  }, [selectedStatus, selectedInventoryId, recordLimit]);
+  }, [selectedStatus, selectedInventoryId]);
 
   // Unified refresh handler
   const handleRefreshAll = async () => {
@@ -138,7 +208,7 @@ export default function AlertsHistoryPage() {
     setIsRefreshing(false);
   };
 
-  // Toggle expanded row for history table
+  // Toggle expanded row
   const toggleHistoryRow = (id) => {
     setExpandedHistoryIds((prev) => {
       const next = new Set(prev);
@@ -151,511 +221,740 @@ export default function AlertsHistoryPage() {
     });
   };
 
+  // Derived filtered history records
+  const filteredHistory = historyList.filter((record) => {
+    // Reading type filter (segmented buttons)
+    if (readingTypeFilter === 'MANUAL' && record.is_simulated) return false;
+    if (readingTypeFilter === 'SIMULATED' && !record.is_simulated) return false;
+
+    // Time range filter
+    if (timeRange === '7') {
+      const recordTime = new Date(record.checked_at).getTime();
+      const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+      if (recordTime < cutoff) return false;
+    } else if (timeRange === '30') {
+      const recordTime = new Date(record.checked_at).getTime();
+      const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+      if (recordTime < cutoff) return false;
+    }
+
+    return true;
+  });
+
   const tempWarnings = alertsData?.temperature_warnings || [];
   const expiryAlerts = alertsData?.expiry_alerts || [];
   const preservationTips = alertsData?.preservation_tips || [];
-  const totalAlertsCount = tempWarnings.length + expiryAlerts.length;
+
+  const isFiltered =
+    readingTypeFilter !== 'ALL' ||
+    timeRange !== '7' ||
+    selectedStatus !== 'ALL' ||
+    selectedInventoryId !== 'ALL';
+
+  const resetAllFilters = () => {
+    setReadingTypeFilter('ALL');
+    setTimeRange('7');
+    setSelectedStatus('ALL');
+    setSelectedInventoryId('ALL');
+  };
+
+  // Loading state
+  if (isLoadingAlerts && isLoadingHistory) {
+    return (
+      <div className="page-alerts">
+        <div className="alerts-page-heading">
+          <h2>Alerts &amp; History</h2>
+          <p>Monitor storage warnings, expiry dates and food preservation records.</p>
+        </div>
+        <LoadingState message="Loading storage alerts, preservation guidelines, and history records..." />
+      </div>
+    );
+  }
+
+  // Error state
+  if (alertsError && historyError) {
+    return (
+      <div className="page-alerts">
+        <div className="alerts-page-heading">
+          <h2>Alerts &amp; History</h2>
+          <p>Monitor storage warnings, expiry dates and food preservation records.</p>
+        </div>
+        <ErrorState
+          title="Unable to load alerts & history data"
+          message={alertsError}
+          onRetry={handleRefreshAll}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="page-alerts">
-      <PageHeading
-        title="Alerts & Temperature History"
-        subtitle="Monitor active temperature breaches, upcoming expiry notifications, category preservation tips, and historical check logs."
-        action={
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm"
-            onClick={handleRefreshAll}
-            disabled={isRefreshing}
-            title="Refresh alerts and temperature history"
+      {/* =================================================================== */}
+      {/* 1. Page Heading                                                     */}
+      {/* =================================================================== */}
+      <div className="alerts-page-heading-row">
+        <div className="alerts-page-heading">
+          <h2>Alerts &amp; History</h2>
+          <p>Monitor storage warnings, expiry dates and food preservation records.</p>
+        </div>
+
+        <button
+          type="button"
+          className="btn-refresh-alerts"
+          onClick={handleRefreshAll}
+          disabled={isRefreshing}
+          title="Refresh alerts and temperature history"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            fill="none"
+            className={isRefreshing ? 'spin-animation' : ''}
           >
-            <span className={isRefreshing ? 'spinner-icon' : ''}>🔄</span>
-            {isRefreshing ? ' Refreshing...' : ' Refresh Data'}
-          </button>
-        }
-      />
-
-      {/* =================================================================== */}
-      {/* Navigation Tabs Header                                              */}
-      {/* =================================================================== */}
-      <div className="alerts-tabs-nav" style={{ marginBottom: '1.5rem' }}>
-        <button
-          type="button"
-          className={`tab-btn ${activeTab === 'alerts' ? 'active' : ''}`}
-          onClick={() => setActiveTab('alerts')}
-        >
-          <span className="tab-icon">🔔</span>
-          <span>Active Alerts &amp; Preservation</span>
-          {totalAlertsCount > 0 ? (
-            <span className="tab-count-badge alert-count">{totalAlertsCount}</span>
-          ) : (
-            <span className="tab-count-badge zero-count">0</span>
-          )}
-        </button>
-
-        <button
-          type="button"
-          className={`tab-btn ${activeTab === 'history' ? 'active' : ''}`}
-          onClick={() => setActiveTab('history')}
-        >
-          <span className="tab-icon">📜</span>
-          <span>Temperature History Log</span>
-          <span className="tab-count-badge neutral-count">{historyList.length}</span>
+            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.19" />
+          </svg>
+          <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
         </button>
       </div>
 
       {/* =================================================================== */}
-      {/* TAB 1: ACTIVE ALERTS & PRESERVATION RECOMMENDATIONS                 */}
+      {/* 2. Alert Summary Cards (Two Prominent Cards Side-by-Side)          */}
       {/* =================================================================== */}
-      {activeTab === 'alerts' && (
-        <div className="alerts-tab-content">
-          {isLoadingAlerts ? (
-            <LoadingState message="Loading active temperature warnings and expiry notifications..." />
-          ) : alertsError ? (
-            <ErrorState
-              title="Unable to load alerts"
-              message={alertsError}
-              onRetry={() => loadAlerts(false)}
-            />
-          ) : (
-            <>
-              {/* Top Grid: Temperature Warnings & Expiry Alerts */}
-              <div className="grid-2" style={{ marginBottom: '1.5rem' }}>
-                {/* 1. Active Temperature Warnings */}
-                <Card
-                  title="Active Temperature Warnings"
-                  subtitle="Monitored items whose latest recorded reading exceeded recommended maximum limits"
-                  action={
-                    tempWarnings.length > 0 && (
-                      <span className="badge-count-danger">{tempWarnings.length} breach(es)</span>
-                    )
-                  }
-                >
-                  {tempWarnings.length === 0 ? (
-                    <div className="placeholder-box" style={{ padding: '2.5rem 1.5rem', textAlign: 'center' }}>
-                      <span style={{ fontSize: '2.5rem', display: 'block', marginBottom: '0.75rem' }}>❄️</span>
-                      <p className="primary" style={{ color: 'var(--status-safe-text)' }}>
-                        No Active Temperature Warnings
-                      </p>
-                      <p className="secondary" style={{ maxWidth: '360px', margin: '0 auto 1.25rem' }}>
-                        All active inventory items with recorded checks are currently within their recommended household temperature limits.
-                      </p>
-                      <Link to="/checker" className="btn btn-secondary btn-sm">
-                        Go to Temperature Checker
-                      </Link>
-                    </div>
-                  ) : (
-                    <div className="alerts-card-list">
-                      {tempWarnings.map((item) => (
-                        <div key={item.inventory_id} className="alert-card-item breach-alert-card">
-                          <div className="alert-card-header">
-                            <div>
-                              <h4 className="alert-food-title">{item.display_name}</h4>
-                              <span className="alert-location-tag">
-                                📍 {item.storage_location} • {item.storage_type}
-                              </span>
-                            </div>
-                            <StatusBadge status="ABOVE_LIMIT" />
-                          </div>
-
-                          <div className="alert-temp-comparison">
-                            <div className="temp-stat recorded">
-                              <span className="stat-label">Recorded:</span>
-                              <strong className="stat-value">{item.recorded_temp_c.toFixed(1)}&deg;C</strong>
-                            </div>
-                            <span className="stat-separator">vs</span>
-                            <div className="temp-stat target">
-                              <span className="stat-label">Recommended Max:</span>
-                              <strong className="stat-value">
-                                &le; {item.max_temp_c !== null ? item.max_temp_c.toFixed(1) : 'N/A'}&deg;C
-                              </strong>
-                            </div>
-                          </div>
-
-                          <div className="alert-message-box">
-                            <p className="alert-msg-text">{item.message}</p>
-                          </div>
-
-                          <div className="alert-guidance-box">
-                            <strong>💡 Storage Guidance:</strong>
-                            <p>{item.storage_guidance}</p>
-                          </div>
-
-                          <div className="alert-card-footer">
-                            <span className="alert-timestamp">Checked: {formatDateTime(item.checked_at)}</span>
-                            {item.reference_title && (
-                              <a
-                                href={item.reference_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="citation-link"
-                              >
-                                {item.reference_title} ↗
-                              </a>
-                            )}
-                            <Link to="/checker" className="btn btn-secondary btn-sm alert-action-btn">
-                              Re-check Probe
-                            </Link>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </Card>
-
-                {/* 2. Upcoming & Overdue Expiry Alerts */}
-                <Card
-                  title="Upcoming &amp; Overdue Expiry Alerts"
-                  subtitle="Stored items expiring within 3 days or already past their safe consumption date"
-                  action={
-                    expiryAlerts.length > 0 && (
-                      <span className="badge-count-warn">{expiryAlerts.length} alert(s)</span>
-                    )
-                  }
-                >
-                  {expiryAlerts.length === 0 ? (
-                    <div className="placeholder-box" style={{ padding: '2.5rem 1.5rem', textAlign: 'center' }}>
-                      <span style={{ fontSize: '2.5rem', display: 'block', marginBottom: '0.75rem' }}>🥗</span>
-                      <p className="primary" style={{ color: 'var(--status-safe-text)' }}>
-                        No Pending Expiry Alerts
-                      </p>
-                      <p className="secondary" style={{ maxWidth: '360px', margin: '0 auto 1.25rem' }}>
-                        All active inventory items are fresh and well within their safe consumption window.
-                      </p>
-                      <Link to="/inventory" className="btn btn-secondary btn-sm">
-                        View Food Inventory
-                      </Link>
-                    </div>
-                  ) : (
-                    <div className="alerts-card-list">
-                      {expiryAlerts.map((item) => {
-                        const isExpired = item.expiry_status === 'EXPIRED';
-                        return (
-                          <div
-                            key={item.inventory_id}
-                            className={`alert-card-item ${isExpired ? 'expired-alert-card' : 'near-alert-card'}`}
-                          >
-                            <div className="alert-card-header">
-                              <div>
-                                <h4 className="alert-food-title">{item.display_name}</h4>
-                                <span className="alert-location-tag">📍 {item.storage_location}</span>
-                              </div>
-                              <StatusBadge status={item.expiry_status} />
-                            </div>
-
-                            <div className="alert-expiry-timeline">
-                              <div className="timeline-stat">
-                                <span className="stat-label">Expiry Date:</span>
-                                <strong>{formatDate(item.expiry_date)}</strong>
-                              </div>
-                              <div className="timeline-stat">
-                                <span className="stat-label">Shelf-Life Status:</span>
-                                <strong className={isExpired ? 'text-danger' : 'text-warn'}>
-                                  {isExpired
-                                    ? `Expired ${Math.abs(item.days_until_expiry)} day(s) ago`
-                                    : item.days_until_expiry === 0
-                                    ? 'Expires today'
-                                    : item.days_until_expiry === 1
-                                    ? 'Expires tomorrow'
-                                    : `Expires in ${item.days_until_expiry} days`}
-                                </strong>
-                              </div>
-                            </div>
-
-                            <div className="alert-guidance-box">
-                              <strong>💡 Guidance:</strong>
-                              <p>{item.storage_guidance}</p>
-                            </div>
-
-                            <div className="alert-card-footer">
-                              <span className="alert-timestamp">Purchased: {formatDate(item.purchase_date)}</span>
-                              {item.reference_title && (
-                                <a
-                                  href={item.reference_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="citation-link"
-                                >
-                                  {item.reference_title} ↗
-                                </a>
-                              )}
-                              <Link to="/inventory" className="btn btn-secondary btn-sm alert-action-btn">
-                                Manage Item
-                              </Link>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </Card>
-              </div>
-
-              {/* 3. Tailored Preservation Recommendations Section */}
-              <Card
-                title="Verified Category Preservation Guidelines"
-                subtitle="Storage advice and official standards tailored to the active categories currently in your inventory"
+      <div className="alerts-summary-grid">
+        {/* Card 1: Temperature Warnings */}
+        <div className={`alerts-summary-card ${tempWarnings.length > 0 ? 'has-breaches' : 'is-safe'}`}>
+          <div className="summary-card-left">
+            <div
+              className={`summary-icon-circle ${tempWarnings.length > 0 ? 'icon-circle-danger' : 'icon-circle-green'}`}
+              aria-hidden="true"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                width="30"
+                height="30"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                fill="none"
               >
-                {preservationTips.length === 0 ? (
-                  <div className="placeholder-box" style={{ padding: '2rem 1.5rem', textAlign: 'center' }}>
-                    <p className="primary">No active food categories detected</p>
-                    <p className="secondary">
-                      Add food items to your inventory to view category-specific preservation advice from FoodSafety.gov &amp; USDA FSIS.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="preservation-tips-grid">
-                    {preservationTips.map((tip) => (
-                      <div key={tip.category} className="preservation-tip-card">
-                        <div className="tip-card-header">
-                          <h4 className="tip-category-title">{tip.category}</h4>
-                          <StatusBadge status={tip.storage_type} />
-                        </div>
-                        <div className="tip-location-row">
-                          <span className="tip-label">Standard Location:</span>
-                          <span className="tip-value">{tip.default_location}</span>
-                        </div>
-                        <p className="tip-guidance-text">{tip.storage_guidance}</p>
-                        <div className="tip-citation-footer">
-                          <span>Authority Standard: </span>
-                          <a
-                            href={tip.reference_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="citation-link"
-                          >
-                            {tip.reference_title} ↗
-                          </a>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </Card>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* =================================================================== */}
-      {/* TAB 2: TEMPERATURE CHECK HISTORY AUDIT LOG                          */}
-      {/* =================================================================== */}
-      {activeTab === 'history' && (
-        <div className="history-tab-content">
-          <Card
-            title="Temperature Check Audit History"
-            subtitle="Chronological log of all recorded probe checks and simulated readings across active and archived items"
-          >
-            {/* Filter Bar */}
-            <div className="history-filter-bar" style={{ marginBottom: '1.25rem' }}>
-              {/* Status Filter */}
-              <div className="filter-select-wrapper">
-                <label htmlFor="history-status-filter" className="filter-label">
-                  Evaluation Status:
-                </label>
-                <select
-                  id="history-status-filter"
-                  className="filter-select"
-                  value={selectedStatus}
-                  onChange={(e) => setSelectedStatus(e.target.value)}
-                >
-                  <option value="ALL">All Statuses</option>
-                  <option value="WITHIN_LIMIT">Within Limit (Compliant)</option>
-                  <option value="ABOVE_LIMIT">Above Limit (Warning)</option>
-                  <option value="NO_LIMIT">No Limit (Ambient)</option>
-                </select>
-              </div>
-
-              {/* Food Item Filter */}
-              <div className="filter-select-wrapper">
-                <label htmlFor="history-item-filter" className="filter-label">
-                  Food Item:
-                </label>
-                <select
-                  id="history-item-filter"
-                  className="filter-select"
-                  value={selectedInventoryId}
-                  onChange={(e) => setSelectedInventoryId(e.target.value)}
-                >
-                  <option value="ALL">All Food Items</option>
-                  {inventoryItems.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.display_name} (ID: {item.id})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Limit Selector */}
-              <div className="filter-select-wrapper">
-                <label htmlFor="history-limit-select" className="filter-label">
-                  Record Limit:
-                </label>
-                <select
-                  id="history-limit-select"
-                  className="filter-select"
-                  value={recordLimit}
-                  onChange={(e) => setRecordLimit(Number(e.target.value))}
-                >
-                  <option value={25}>25 records</option>
-                  <option value={50}>50 records</option>
-                  <option value={100}>100 records</option>
-                  <option value={200}>200 records</option>
-                </select>
-              </div>
-
-              {/* Reset Filters Button */}
-              {(selectedStatus !== 'ALL' || selectedInventoryId !== 'ALL' || recordLimit !== 50) && (
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => {
-                    setSelectedStatus('ALL');
-                    setSelectedInventoryId('ALL');
-                    setRecordLimit(50);
-                  }}
-                  style={{ padding: '0.45rem 0.75rem' }}
-                >
-                  Reset Filters
-                </button>
-              )}
-
-              <div className="filter-counter">
-                Showing <strong>{historyList.length}</strong> check(s)
-              </div>
+                <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z" />
+                <circle cx="11.5" cy="16.5" r="2.2" fill="currentColor" />
+                <line x1="11.5" y1="9" x2="11.5" y2="14.3" stroke="currentColor" strokeWidth="2.4" />
+              </svg>
             </div>
 
-            {/* Table Content */}
-            {isLoadingHistory ? (
-              <LoadingState message="Loading historical temperature checks..." />
-            ) : historyError ? (
-              <ErrorState
-                title="Unable to load history"
-                message={historyError}
-                onRetry={() => loadHistory(false)}
-              />
-            ) : historyList.length === 0 ? (
-              <div className="placeholder-box" style={{ padding: '3rem 1.5rem', textAlign: 'center' }}>
-                <span style={{ fontSize: '2.5rem', display: 'block', marginBottom: '0.75rem' }}>📋</span>
-                <p className="primary">No Temperature Checks Found</p>
-                <p className="secondary" style={{ maxWidth: '420px', margin: '0 auto 1.25rem' }}>
-                  No historical records match your filter criteria. Perform manual temperature evaluations or demo simulations on the Temperature Checker page.
-                </p>
-                <Link to="/checker" className="btn btn-primary btn-sm">
-                  Go to Temperature Checker
-                </Link>
+            <div className="summary-info-col">
+              <span className="summary-label">Temperature Warnings</span>
+              <div className="summary-stat-row">
+                <span className="summary-count">{tempWarnings.length}</span>
+                {tempWarnings.length === 0 ? (
+                  <span className="summary-status-pill pill-status-clean-green">
+                    <span className="pill-status-dot">✓</span>
+                    <span>No active alerts</span>
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    className="summary-status-pill pill-status-danger"
+                    onClick={() => setShowWarningDetails((prev) => !prev)}
+                    title="Click to toggle warning item details"
+                  >
+                    <span className="pill-status-dot">⚠️</span>
+                    <span>
+                      {tempWarnings.length === 1 ? '1 active warning' : `${tempWarnings.length} active warnings`}
+                    </span>
+                    <span className="pill-expand-arrow">{showWarningDetails ? '▲' : '▼'}</span>
+                  </button>
+                )}
               </div>
-            ) : (
-              <div className="table-responsive-wrapper">
-                <table className="inventory-table history-table">
-                  <thead>
-                    <tr>
-                      <th style={{ width: '40px' }}></th>
-                      <th>Checked Timestamp</th>
-                      <th>Food Item</th>
-                      <th>Storage Location</th>
-                      <th>Recorded Temp</th>
-                      <th>Target Limit</th>
-                      <th>Status</th>
-                      <th>Reading Type</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {historyList.map((record) => {
-                      const isExpanded = expandedHistoryIds.has(record.id);
-                      return (
-                        <React.Fragment key={record.id}>
-                          <tr
-                            className={`inventory-row ${isExpanded ? 'expanded' : ''}`}
-                            onClick={() => toggleHistoryRow(record.id)}
-                            style={{ cursor: 'pointer' }}
-                          >
-                            <td>
-                              <button
-                                type="button"
-                                className="btn-row-toggle"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  toggleHistoryRow(record.id);
-                                }}
-                                aria-label={isExpanded ? 'Collapse row' : 'Expand row'}
-                              >
-                                {isExpanded ? '▼' : '▶'}
-                              </button>
-                            </td>
-                            <td>
-                              <span className="history-timestamp">{formatDateTime(record.checked_at)}</span>
-                            </td>
-                            <td>
-                              <div className="food-name-cell">
-                                <span className="display-name">{record.display_name}</span>
-                                <span className="base-cat-name">Item #{record.inventory_id}</span>
-                              </div>
-                            </td>
-                            <td>{record.storage_location}</td>
-                            <td>
-                              <strong className="qty-cell">{record.recorded_temp_c.toFixed(1)}&deg;C</strong>
-                            </td>
-                            <td>
-                              {record.max_temp_c !== null && record.max_temp_c !== undefined
-                                ? `≤ ${record.max_temp_c.toFixed(1)}°C`
-                                : 'No numerical limit'}
-                            </td>
-                            <td>
-                              <StatusBadge status={record.status} />
-                            </td>
-                            <td>
-                              <span
-                                className={`badge-reading-type ${
-                                  record.is_simulated ? 'type-simulated' : 'type-manual'
-                                }`}
-                              >
-                                {record.is_simulated ? 'Demo Simulation' : 'Manual Probe'}
-                              </span>
-                            </td>
-                          </tr>
+            </div>
+          </div>
 
-                          {/* Expanded row with finding message and authority reference */}
-                          {isExpanded && (
-                            <tr className="expanded-row">
-                              <td colSpan={8}>
-                                <div className="history-expanded-detail">
-                                  <div className="detail-section">
-                                    <strong>Authoritative Evaluation Message</strong>
-                                    <p className="detail-message-text">{record.message}</p>
-                                  </div>
+          <div className="summary-card-divider" />
 
-                                  {record.reference_title && (
-                                    <div className="detail-section citation-section">
-                                      <strong>Verified Authority Standard</strong>
-                                      {record.reference_url ? (
-                                        <a
-                                          href={record.reference_url}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="citation-link"
-                                        >
-                                          {record.reference_title} ↗
-                                        </a>
-                                      ) : (
-                                        <span>{record.reference_title}</span>
-                                      )}
-                                    </div>
-                                  )}
-                                </div>
-                              </td>
-                            </tr>
-                          )}
-                        </React.Fragment>
-                      );
-                    })}
-                  </tbody>
-                </table>
+          <div className="summary-card-right">
+            <Link to="/checker" className="summary-nav-link">
+              <span>View Temperature Checker</span>
+              <span className="nav-arrow" aria-hidden="true">→</span>
+            </Link>
+          </div>
+        </div>
+
+        {/* Card 2: Expiry Alerts */}
+        <div className={`alerts-summary-card ${expiryAlerts.length > 0 ? 'has-expiry' : 'is-safe'}`}>
+          <div className="summary-card-left">
+            <div
+              className={`summary-icon-circle ${expiryAlerts.length > 0 ? 'icon-circle-amber' : 'icon-circle-amber-soft'}`}
+              aria-hidden="true"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                width="30"
+                height="30"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                fill="none"
+              >
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+                <circle cx="16" cy="16" r="3" />
+                <polyline points="16 14.5 16 16 17.5 16" />
+              </svg>
+            </div>
+
+            <div className="summary-info-col">
+              <span className="summary-label">Expiry Alerts</span>
+              <div className="summary-stat-row">
+                <span className="summary-count">{expiryAlerts.length}</span>
+                {expiryAlerts.length === 0 ? (
+                  <span className="summary-status-pill pill-status-clean-amber">
+                    <span className="pill-status-dot">✓</span>
+                    <span>No pending alerts</span>
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    className="summary-status-pill pill-status-warn"
+                    onClick={() => setShowExpiryDetails((prev) => !prev)}
+                    title="Click to toggle expiry alert details"
+                  >
+                    <span className="pill-status-dot">⚠️</span>
+                    <span>
+                      {expiryAlerts.length === 1 ? '1 item requires attention' : `${expiryAlerts.length} items require attention`}
+                    </span>
+                    <span className="pill-expand-arrow">{showExpiryDetails ? '▲' : '▼'}</span>
+                  </button>
+                )}
               </div>
-            )}
-          </Card>
+            </div>
+          </div>
+
+          <div className="summary-card-divider" />
+
+          <div className="summary-card-right">
+            <Link to="/inventory" className="summary-nav-link">
+              <span>View Food Inventory</span>
+              <span className="nav-arrow" aria-hidden="true">→</span>
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* =================================================================== */}
+      {/* 2B. Expandable Active Alerts Panels (When Items Require Action)      */}
+      {/* =================================================================== */}
+      {showWarningDetails && tempWarnings.length > 0 && (
+        <div className="active-alerts-panel">
+          <div className="active-alerts-panel-header">
+            <h4>Active Temperature Warning Details</h4>
+            <button
+              type="button"
+              className="btn-close-panel"
+              onClick={() => setShowWarningDetails(false)}
+            >
+              ✕ Close
+            </button>
+          </div>
+          <div className="active-alerts-items-grid">
+            {tempWarnings.map((item) => (
+              <div key={item.inventory_id} className="active-alert-item-card alert-breach-item">
+                <div className="alert-item-title-row">
+                  <strong>{item.display_name}</strong>
+                  <span className="alert-breach-badge">Above Limit</span>
+                </div>
+                <div className="alert-item-meta-line">
+                  <span>Location: {item.storage_location}</span>
+                  <span>•</span>
+                  <span>
+                    Recorded: <strong>{item.recorded_temp_c.toFixed(1)}°C</strong> (Max ≤ {item.max_temp_c}°C)
+                  </span>
+                </div>
+                <p className="alert-item-msg">{item.message}</p>
+                <div className="alert-item-actions">
+                  <Link to="/checker" className="alert-action-link">
+                    Re-check in Temperature Checker →
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
+
+      {showExpiryDetails && expiryAlerts.length > 0 && (
+        <div className="active-alerts-panel">
+          <div className="active-alerts-panel-header">
+            <h4>Active Expiry Alert Details</h4>
+            <button
+              type="button"
+              className="btn-close-panel"
+              onClick={() => setShowExpiryDetails(false)}
+            >
+              ✕ Close
+            </button>
+          </div>
+          <div className="active-alerts-items-grid">
+            {expiryAlerts.map((item) => {
+              const isExpired = item.expiry_status === 'EXPIRED';
+              return (
+                <div
+                  key={item.inventory_id}
+                  className={`active-alert-item-card ${isExpired ? 'alert-expired-item' : 'alert-near-item'}`}
+                >
+                  <div className="alert-item-title-row">
+                    <strong>{item.display_name}</strong>
+                    <span className={isExpired ? 'alert-expired-badge' : 'alert-near-badge'}>
+                      {isExpired ? 'Expired' : 'Near Expiry'}
+                    </span>
+                  </div>
+                  <div className="alert-item-meta-line">
+                    <span>Location: {item.storage_location}</span>
+                    <span>•</span>
+                    <span>
+                      {isExpired
+                        ? `Expired ${Math.abs(item.days_until_expiry)} day(s) ago`
+                        : item.days_until_expiry === 0
+                          ? 'Expires today'
+                          : `Expires in ${item.days_until_expiry} days`}
+                    </span>
+                  </div>
+                  <p className="alert-item-msg">{item.storage_guidance}</p>
+                  <div className="alert-item-actions">
+                    <Link to="/inventory" className="alert-action-link">
+                      Manage in Food Inventory →
+                    </Link>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* =================================================================== */}
+      {/* 3. Verified Preservation Guidelines                                */}
+      {/* =================================================================== */}
+      <div className="preservation-section-wrapper">
+        <div className="section-header-row">
+          <div className="section-title-group">
+            <span className="section-title-icon icon-book-green" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2.2" fill="none">
+                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+              </svg>
+            </span>
+            <div>
+              <h3 className="section-title">Verified Preservation Guidelines</h3>
+              <p className="section-subtitle">
+                Follow official storage recommendations from USDA and FoodSafety.gov.
+              </p>
+            </div>
+          </div>
+
+          <Link to="/inventory" className="btn-view-all-guidelines">
+            <span>View All Guidelines</span>
+            <span className="btn-arrow" aria-hidden="true">→</span>
+          </Link>
+        </div>
+
+        {preservationTips.length === 0 ? (
+          <div className="preservation-empty-card">
+            <span className="empty-icon-sm">📦</span>
+            <h4>No Active Food Categories Detected</h4>
+            <p>
+              Add food items to your inventory to view official category preservation recommendations.
+            </p>
+            <Link to="/inventory" className="btn-empty-action">
+              + Go to Food Inventory
+            </Link>
+          </div>
+        ) : (
+          <div className="preservation-cards-grid">
+            {preservationTips.map((tip) => {
+              const vis = getCategoryVisual(tip.category, tip.storage_type);
+              const defaultLoc = tip.default_location || 'Refrigerator';
+              const tempCondition =
+                tip.storage_type === 'FROZEN'
+                  ? '≤ -18°C'
+                  : tip.storage_type === 'REFRIGERATED'
+                    ? '≤ 4°C'
+                    : 'Cool & Dry';
+
+              return (
+                <div key={tip.category} className="preservation-card">
+                  <div
+                    className="preservation-card-avatar"
+                    style={{ backgroundColor: vis.color }}
+                    aria-hidden="true"
+                  >
+                    <span>{vis.emoji}</span>
+                  </div>
+
+                  <div className="preservation-card-content">
+                    <h4 className="preservation-card-title">{tip.category}</h4>
+                    <span className="preservation-card-condition">
+                      {defaultLoc} • {tempCondition}
+                    </span>
+                    <p className="preservation-card-desc">{tip.storage_guidance}</p>
+                    {tip.reference_url && (
+                      <a
+                        href={tip.reference_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="preservation-learn-more"
+                      >
+                        Learn more ↗
+                      </a>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* =================================================================== */}
+      {/* 4. Temperature History                                              */}
+      {/* =================================================================== */}
+      <div className="history-section-wrapper">
+        <div className="section-header-row history-header-row">
+          <div className="section-title-group">
+            <span className="section-title-icon icon-clock-green" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2.2" fill="none">
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                <path d="M3 3v5h5" />
+                <path d="M12 7v5l4 2" />
+              </svg>
+            </span>
+            <div>
+              <h3 className="section-title">Temperature History</h3>
+              <p className="section-subtitle">
+                Track all temperature checks, including manual and simulated readings.
+              </p>
+            </div>
+          </div>
+
+          <div className="history-toolbar-right">
+            {/* Segmented Filter Pills */}
+            <div className="segmented-filter-bar" role="group" aria-label="Filter readings by type">
+              <button
+                type="button"
+                className={`seg-btn ${readingTypeFilter === 'ALL' ? 'active' : ''}`}
+                onClick={() => setReadingTypeFilter('ALL')}
+              >
+                All Readings
+              </button>
+              <button
+                type="button"
+                className={`seg-btn ${readingTypeFilter === 'MANUAL' ? 'active' : ''}`}
+                onClick={() => setReadingTypeFilter('MANUAL')}
+              >
+                Manual
+              </button>
+              <button
+                type="button"
+                className={`seg-btn ${readingTypeFilter === 'SIMULATED' ? 'active' : ''}`}
+                onClick={() => setReadingTypeFilter('SIMULATED')}
+              >
+                Simulated
+              </button>
+            </div>
+
+            {/* Time Filter Dropdown */}
+            <div className="time-select-container">
+              <select
+                className="time-select-control"
+                value={timeRange}
+                onChange={(e) => setTimeRange(e.target.value)}
+                aria-label="Filter history by time range"
+              >
+                <option value="7">Last 7 Days</option>
+                <option value="30">Last 30 Days</option>
+                <option value="all">All Time</option>
+              </select>
+              <span className="time-select-caret" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" strokeWidth="2.5" fill="none">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </span>
+            </div>
+
+            {/* Toggle for Advanced Filters */}
+            <button
+              type="button"
+              className={`btn-toggle-filters ${showAdvancedFilters ? 'active' : ''}`}
+              onClick={() => setShowAdvancedFilters((prev) => !prev)}
+              title="Filter by status or food item"
+            >
+              <svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" strokeWidth="2.2" fill="none">
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+              </svg>
+              <span>Filters</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Optional Secondary Filter Row */}
+        {showAdvancedFilters && (
+          <div className="history-advanced-filters-row">
+            <div className="filter-item-col">
+              <label htmlFor="filter-status">Status</label>
+              <select
+                id="filter-status"
+                value={selectedStatus}
+                onChange={(e) => setSelectedStatus(e.target.value)}
+                className="advanced-select"
+              >
+                <option value="ALL">All Statuses</option>
+                <option value="WITHIN_LIMIT">Within Limit (Safe)</option>
+                <option value="ABOVE_LIMIT">Above Limit (Warning)</option>
+                <option value="NO_LIMIT">No Limit (Ambient)</option>
+              </select>
+            </div>
+
+            <div className="filter-item-col">
+              <label htmlFor="filter-item">Food Item</label>
+              <select
+                id="filter-item"
+                value={selectedInventoryId}
+                onChange={(e) => setSelectedInventoryId(e.target.value)}
+                className="advanced-select"
+              >
+                <option value="ALL">All Food Items</option>
+                {inventoryItems.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.display_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {isFiltered && (
+              <button type="button" className="btn-reset-filters" onClick={resetAllFilters}>
+                Reset Filters
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* History Table Container */}
+        {filteredHistory.length === 0 ? (
+          <div className="history-empty-card">
+            <div className="empty-icon-circle" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="36" height="36" stroke="#166534" strokeWidth="2" fill="none">
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
+            </div>
+            <h4>No Temperature Records Yet</h4>
+            <p>
+              {isFiltered
+                ? 'No recorded temperature checks match your current filter settings. Try adjusting or resetting the filters.'
+                : 'Temperature checks will appear here after performing a manual probe check or simulation in the Temperature Checker.'}
+            </p>
+            {isFiltered ? (
+              <button type="button" className="btn-empty-action" onClick={resetAllFilters}>
+                Clear Active Filters
+              </button>
+            ) : (
+              <Link to="/checker" className="btn-empty-action">
+                Go to Temperature Checker
+              </Link>
+            )}
+          </div>
+        ) : (
+          <div className="history-table-card">
+            <div className="history-table-responsive">
+              <table className="custom-history-table">
+                <thead>
+                  <tr>
+                    <th>DATE &amp; TIME</th>
+                    <th>FOOD ITEM</th>
+                    <th>TEMPERATURE</th>
+                    <th>STATUS</th>
+                    <th>READING TYPE</th>
+                    <th style={{ textAlign: 'right' }}>ACTIONS</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredHistory.map((record) => {
+                    const isExpanded = expandedHistoryIds.has(record.id);
+                    return (
+                      <React.Fragment key={record.id}>
+                        <tr className={`history-table-row ${isExpanded ? 'row-expanded' : ''}`}>
+                          {/* 1. Date & Time */}
+                          <td>
+                            <div className="table-datetime-cell">
+                              <svg
+                                viewBox="0 0 24 24"
+                                width="16"
+                                height="16"
+                                stroke="#64748B"
+                                strokeWidth="2"
+                                fill="none"
+                                aria-hidden="true"
+                              >
+                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                                <line x1="16" y1="2" x2="16" y2="6" />
+                                <line x1="8" y1="2" x2="8" y2="6" />
+                                <line x1="3" y1="10" x2="21" y2="10" />
+                              </svg>
+                              <span>{formatHistoryDateTime(record.checked_at)}</span>
+                            </div>
+                          </td>
+
+                          {/* 2. Food Item */}
+                          <td>
+                            <strong className="table-food-name">{record.display_name}</strong>
+                          </td>
+
+                          {/* 3. Temperature */}
+                          <td>
+                            <strong className="table-temp-val">{formatTemp(record.recorded_temp_c)}</strong>
+                          </td>
+
+                          {/* 4. Status */}
+                          <td>
+                            <span
+                              className={`history-status-pill ${record.status === 'WITHIN_LIMIT'
+                                  ? 'pill-safe'
+                                  : record.status === 'ABOVE_LIMIT'
+                                    ? 'pill-danger'
+                                    : 'pill-neutral'
+                                }`}
+                            >
+                              <span className="status-dot" aria-hidden="true">
+                                <svg viewBox="0 0 6 6" width="6" height="6" fill="currentColor">
+                                  <circle cx="3" cy="3" r="3" />
+                                </svg>
+                              </span>
+                              <span>
+                                {record.status === 'WITHIN_LIMIT'
+                                  ? 'Within Limit'
+                                  : record.status === 'ABOVE_LIMIT'
+                                    ? 'Above Limit'
+                                    : 'No Limit'}
+                              </span>
+                            </span>
+                          </td>
+
+                          {/* 5. Reading Type */}
+                          <td>
+                            <div className="table-reading-type-cell">
+                              {record.is_simulated ? (
+                                <>
+                                  <svg
+                                    viewBox="0 0 24 24"
+                                    width="16"
+                                    height="16"
+                                    stroke="#64748B"
+                                    strokeWidth="2.2"
+                                    fill="none"
+                                    aria-hidden="true"
+                                  >
+                                    <polyline points="16 3 21 3 21 8" />
+                                    <line x1="4" y1="20" x2="21" y2="3" />
+                                    <polyline points="21 16 21 21 16 21" />
+                                    <line x1="15" y1="15" x2="21" y2="21" />
+                                    <line x1="4" y1="4" x2="9" y2="9" />
+                                  </svg>
+                                  <span>Simulated</span>
+                                </>
+                              ) : (
+                                <>
+                                  <svg
+                                    viewBox="0 0 24 24"
+                                    width="16"
+                                    height="16"
+                                    stroke="#64748B"
+                                    strokeWidth="2.2"
+                                    fill="none"
+                                    aria-hidden="true"
+                                  >
+                                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                                    <circle cx="12" cy="7" r="4" />
+                                  </svg>
+                                  <span>Manual</span>
+                                </>
+                              )}
+                            </div>
+                          </td>
+
+                          {/* 6. Actions */}
+                          <td style={{ textAlign: 'right' }}>
+                            <button
+                              type="button"
+                              className="btn-view-details"
+                              onClick={() => toggleHistoryRow(record.id)}
+                              aria-expanded={isExpanded}
+                            >
+                              <span>{isExpanded ? 'Hide Details' : 'View Details'}</span>
+                              <span className="action-arrow" aria-hidden="true">
+                                {isExpanded ? '↑' : '→'}
+                              </span>
+                            </button>
+                          </td>
+                        </tr>
+
+                        {/* Expandable Finding & Storage Reference */}
+                        {isExpanded && (
+                          <tr className="history-expanded-row">
+                            <td colSpan={6}>
+                              <div className="expanded-detail-container">
+                                <div className="expanded-col">
+                                  <span className="expanded-label">Evaluation Finding</span>
+                                  <p className="expanded-text">{record.message}</p>
+                                </div>
+
+                                <div className="expanded-col">
+                                  <span className="expanded-label">Recommended Threshold</span>
+                                  <p className="expanded-text">
+                                    {record.max_temp_c !== null && record.max_temp_c !== undefined
+                                      ? `≤ ${Number(record.max_temp_c).toFixed(1)}°C (${((Number(record.max_temp_c) * 9) / 5 + 32).toFixed(1)}°F)`
+                                      : 'Ambient (Cool & Dry — No numerical limit)'}
+                                  </p>
+                                </div>
+
+                                {record.reference_title && (
+                                  <div className="expanded-col">
+                                    <span className="expanded-label">Authority Reference Standard</span>
+                                    {record.reference_url ? (
+                                      <a
+                                        href={record.reference_url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="expanded-link"
+                                      >
+                                        {record.reference_title} ↗
+                                      </a>
+                                    ) : (
+                                      <span className="expanded-text">{record.reference_title}</span>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
