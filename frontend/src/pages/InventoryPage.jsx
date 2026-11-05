@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import LoadingState from '../components/LoadingState';
 import ErrorState from '../components/ErrorState';
-import InventoryFormModal from '../components/InventoryFormModal';
+import InventoryFormModal, { getDefaultUnitForCatalogue } from '../components/InventoryFormModal';
 import DeleteConfirmModal from '../components/DeleteConfirmModal';
 import { getCatalogue, getInventory } from '../services/api';
+
+export { getDefaultUnitForCatalogue };
 
 const LOCATIONS = ['All Locations', 'Pantry', 'Refrigerator', 'Freezer', 'Crisper Drawer', 'Root Cellar'];
 const STATUSES = ['All Statuses', 'FRESH', 'NEAR_EXPIRY', 'EXPIRED'];

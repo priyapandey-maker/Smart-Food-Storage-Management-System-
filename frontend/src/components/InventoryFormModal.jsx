@@ -6,6 +6,74 @@ import { createInventoryItem, updateInventoryItem } from '../services/api';
 const UNITS = ['kg', 'g', 'liters', 'pieces', 'packets'];
 const LOCATIONS = ['Pantry', 'Refrigerator', 'Freezer', 'Crisper Drawer', 'Root Cellar'];
 
+/**
+ * Intelligent default unit resolver based on catalogue item name and category.
+ * - Dairy/liquids (e.g. Fresh Milk) -> 'liters'
+ * - Meats, poultry, seafood, produce, grains/rice/pasta -> 'kg'
+ * - Eggs -> 'pieces'
+ * Allows full override by user.
+ */
+export function getDefaultUnitForCatalogue(catalogue) {
+  if (!catalogue) return 'pieces';
+  const name = (catalogue.name || '').toLowerCase();
+  const cat = (catalogue.category || '').toLowerCase();
+
+  // 1. Liquids & Dairy Milks -> liters
+  if (
+    name.includes('milk') ||
+    name.includes('juice') ||
+    name.includes('oil') ||
+    cat.includes('beverage') ||
+    (cat.includes('dairy') && name.includes('milk'))
+  ) {
+    return 'liters';
+  }
+
+  // 2. Meats, Poultry, Seafood -> kg
+  if (
+    cat.includes('meat') ||
+    cat.includes('poultry') ||
+    cat.includes('seafood') ||
+    name.includes('chicken') ||
+    name.includes('beef') ||
+    name.includes('meat') ||
+    name.includes('fish') ||
+    name.includes('salmon')
+  ) {
+    return 'kg';
+  }
+
+  // 3. Grains, Rice, Pasta, Dry Goods -> kg
+  if (
+    cat.includes('pantry') ||
+    cat.includes('grain') ||
+    name.includes('rice') ||
+    name.includes('flour') ||
+    name.includes('pasta')
+  ) {
+    return 'kg';
+  }
+
+  // 4. Fresh Produce / Vegetables / Fruits -> kg
+  if (
+    cat.includes('produce') ||
+    name.includes('produce') ||
+    name.includes('spinach') ||
+    name.includes('lettuce') ||
+    name.includes('vegetable') ||
+    name.includes('apple')
+  ) {
+    return 'kg';
+  }
+
+  // 5. Eggs -> pieces
+  if (name.includes('egg') || cat.includes('egg')) {
+    return 'pieces';
+  }
+
+  return 'pieces';
+}
+
 function getTodayString() {
   const d = new Date();
   const year = d.getFullYear();
@@ -57,16 +125,17 @@ export default function InventoryFormModal({
       setCatalogueId(initialCatId);
       setCustomName('');
       setQuantity('');
-      setUnit('pieces');
       setPurchaseDate(getTodayString());
       setExpiryDate(''); // Leave blank initially as required
 
-      // Default location from catalogue item
+      // Default location & smart unit from catalogue item
       const matchingCat = catalogueList.find((c) => String(c.id) === String(initialCatId));
       if (matchingCat) {
-        setStorageLocation(matchingCat.default_location);
+        setStorageLocation(matchingCat.default_location || 'Refrigerator');
+        setUnit(getDefaultUnitForCatalogue(matchingCat));
       } else {
         setStorageLocation('Refrigerator');
+        setUnit('pieces');
       }
     }
     setError(null);
@@ -75,13 +144,16 @@ export default function InventoryFormModal({
   // Selected catalogue item reference
   const selectedCatalogue = catalogueList.find((c) => String(c.id) === String(catalogueId));
 
-  // When catalogue item changes in Add mode, smart auto-fill default location
+  // When catalogue item changes in Add mode, smart auto-fill default location and unit
   const handleCatalogueChange = (e) => {
     const newId = e.target.value;
     setCatalogueId(newId);
     const cat = catalogueList.find((c) => String(c.id) === String(newId));
-    if (cat && cat.default_location) {
-      setStorageLocation(cat.default_location);
+    if (cat) {
+      if (cat.default_location) {
+        setStorageLocation(cat.default_location);
+      }
+      setUnit(getDefaultUnitForCatalogue(cat));
     }
   };
 

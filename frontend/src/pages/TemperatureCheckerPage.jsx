@@ -30,6 +30,33 @@ function formatTempWithFahrenheit(celsius) {
 }
 
 /**
+ * Format expiry date string into clean date (e.g. "Nov 11, 2026").
+ */
+function formatExpiryDate(dateStr) {
+  if (!dateStr) return 'No expiry date';
+  try {
+    const [year, month, day] = dateStr.split('-');
+    const d = new Date(Number(year), Number(month) - 1, Number(day));
+    return d.toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  } catch {
+    return dateStr;
+  }
+}
+
+/**
+ * Strips duplicate trailing "Storage guidance: ..." from safety status messages
+ * so storage guidance is only rendered in the dedicated Storage Guidance section below.
+ */
+function cleanStatusMessage(message = '') {
+  if (!message) return '';
+  return message.replace(/\s*Storage guidance:\s*.*$/i, '').trim();
+}
+
+/**
  * Food visual representation based on food item and category.
  */
 function getFoodVisual(name = '', category = '') {
@@ -331,7 +358,8 @@ export default function TemperatureCheckerPage() {
                         <span className="food-selector-sub">
                           {selectedItem ? (
                             <>
-                              {selectedItem.catalogue?.category || 'General'} •{' '}
+                              {selectedItem.storage_location || 'Storage'} •{' '}
+                              Exp: {formatExpiryDate(selectedItem.expiry_date)} •{' '}
                               {selectedItem.catalogue?.max_temp_c !== null && selectedItem.catalogue?.max_temp_c !== undefined
                                 ? `Max ${formatTempWithFahrenheit(selectedItem.catalogue?.max_temp_c)}`
                                 : 'Ambient (Cool & Dry)'}
@@ -384,9 +412,10 @@ export default function TemperatureCheckerPage() {
                               <div className="dropdown-option-text">
                                 <span className="option-name">{item.display_name}</span>
                                 <span className="option-meta">
-                                  {item.storage_location} •{' '}
+                                  {item.storage_location || 'Storage'} •{' '}
+                                  Exp: {formatExpiryDate(item.expiry_date)} •{' '}
                                   {item.catalogue?.max_temp_c !== null && item.catalogue?.max_temp_c !== undefined
-                                    ? `Max ≤ ${item.catalogue.max_temp_c}°C`
+                                    ? `Max ≤ ${item.catalogue.max_temp_c.toFixed(1)}°C`
                                     : 'Ambient'}
                                 </span>
                               </div>
@@ -660,7 +689,7 @@ export default function TemperatureCheckerPage() {
                         </span>
                         <strong>Food Safety Status</strong>
                       </div>
-                      <p className="status-box-message">{evalResult.message}</p>
+                      <p className="status-box-message">{cleanStatusMessage(evalResult.message)}</p>
                     </div>
 
                     {/* Storage Guidance Section */}
