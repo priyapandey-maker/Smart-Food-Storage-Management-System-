@@ -10,6 +10,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal, get_db, init_db
+from app.migrate import auto_preserve_and_migrate
 from app.models import FoodCatalogue
 from app.routers import dashboard, inventory, temperature
 from app.schemas import FoodCatalogueResponse, HealthResponse
@@ -18,12 +19,13 @@ from app.seed_data import seed_catalogue_data
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Lifespan context manager that initializes tables and seeds catalogue data."""
-    # Create tables automatically on startup
+    """Lifespan context manager that initializes tables, seeds catalogue, and preserves records."""
+    # Create all four database tables automatically on startup
     init_db()
-    # Seed food catalogue idempotently
+    # Seed food catalogue idempotently and preserve records
     with SessionLocal() as db:
         seed_catalogue_data(db)
+        auto_preserve_and_migrate(db)
     yield
 
 

@@ -1,0 +1,381 @@
+{
+  "food_catalogues": [
+    {
+      "id": 1,
+      "name": "Fresh Milk",
+      "category": "Dairy",
+      "storage_type": "REFRIGERATED",
+      "max_temp_c": 4.0,
+      "default_location": "Refrigerator",
+      "storage_guidance": "Store in refrigerator at or below 4\u00b0C (40\u00b0F). Keep tightly closed in its original carton or bottle.",
+      "reference_title": "FoodSafety.gov \u2013 Cold Food Storage Chart",
+      "reference_url": "https://www.foodsafety.gov/food-safety-charts/cold-food-storage-charts"
+    },
+    {
+      "id": 2,
+      "name": "Raw Chicken Breast",
+      "category": "Meat and poultry",
+      "storage_type": "REFRIGERATED",
+      "max_temp_c": 4.0,
+      "default_location": "Refrigerator",
+      "storage_guidance": "Store in refrigerator at or below 4\u00b0C (40\u00b0F). Keep wrapped securely on the lowest shelf to prevent juices dripping onto other foods.",
+      "reference_title": "USDA FSIS \u2013 Chicken Storage Times",
+      "reference_url": "https://ask.fsis.usda.gov/article/What-are-suggested-refrigerator-storage-times-for-chicken"
+    },
+    {
+      "id": 3,
+      "name": "Raw Ground Beef",
+      "category": "Meat and poultry",
+      "storage_type": "REFRIGERATED",
+      "max_temp_c": 4.0,
+      "default_location": "Refrigerator",
+      "storage_guidance": "Store in refrigerator at or below 4\u00b0C (40\u00b0F) in original packaging or sealed airtight container.",
+      "reference_title": "USDA FSIS \u2013 Meat Storage Guidelines",
+      "reference_url": "https://ask.fsis.usda.gov/article/How-long-can-I-keep-meat-in-the-refrigerator"
+    },
+    {
+      "id": 4,
+      "name": "Fresh Fish Fillets",
+      "category": "Seafood",
+      "storage_type": "REFRIGERATED",
+      "max_temp_c": 4.0,
+      "default_location": "Refrigerator",
+      "storage_guidance": "Store in refrigerator at or below 4\u00b0C (40\u00b0F) wrapped tightly or sealed in an airtight container.",
+      "reference_title": "FoodSafety.gov \u2013 Cold Food Storage Chart",
+      "reference_url": "https://www.foodsafety.gov/food-safety-charts/cold-food-storage-charts"
+    },
+    {
+      "id": 5,
+      "name": "Fresh Shell Eggs",
+      "category": "Eggs",
+      "storage_type": "REFRIGERATED",
+      "max_temp_c": 4.0,
+      "default_location": "Refrigerator",
+      "storage_guidance": "Store in refrigerator at or below 4\u00b0C (40\u00b0F) in their original carton on an inside shelf, not in the door.",
+      "reference_title": "FoodSafety.gov \u2013 4 Steps to Food Safety",
+      "reference_url": "https://www.foodsafety.gov/keep-food-safe/4-steps-to-food-safety"
+    },
+    {
+      "id": 6,
+      "name": "Fresh Cut Produce",
+      "category": "Produce",
+      "storage_type": "REFRIGERATED",
+      "max_temp_c": 4.0,
+      "default_location": "Refrigerator",
+      "storage_guidance": "Store cut vegetables and fruits in refrigerator at or below 4\u00b0C (40\u00b0F) in clean, covered containers.",
+      "reference_title": "FoodSafety.gov \u2013 4 Steps to Food Safety",
+      "reference_url": "https://www.foodsafety.gov/keep-food-safe/4-steps-to-food-safety"
+    },
+    {
+      "id": 7,
+      "name": "Frozen Vegetables",
+      "category": "Frozen foods",
+      "storage_type": "FROZEN",
+      "max_temp_c": -18.0,
+      "default_location": "Freezer",
+      "storage_guidance": "Keep frozen at or below -18\u00b0C (0\u00b0F) in airtight, moisture-resistant packaging.",
+      "reference_title": "FoodSafety.gov \u2013 4 Steps to Food Safety",
+      "reference_url": "https://www.foodsafety.gov/keep-food-safe/4-steps-to-food-safety"
+    },
+    {
+      "id": 8,
+      "name": "Cooked Leftovers",
+      "category": "Cooked leftovers",
+      "storage_type": "REFRIGERATED",
+      "max_temp_c": 4.0,
+      "default_location": "Refrigerator",
+      "storage_guidance": "Refrigerate within 2 hours of cooking at or below 4\u00b0C (40\u00b0F) in shallow, airtight containers.",
+      "reference_title": "FoodSafety.gov \u2013 4 Steps to Food Safety",
+      "reference_url": "https://www.foodsafety.gov/keep-food-safe/4-steps-to-food-safety"
+    },
+    {
+      "id": 9,
+      "name": "Dry White Rice",
+      "category": "Pantry/dry goods",
+      "storage_type": "AMBIENT",
+      "max_temp_c": null,
+      "default_location": "Pantry",
+      "storage_guidance": "Store in a cool, clean, and dry pantry location in an airtight container away from moisture, heat, and direct sunlight.",
+      "reference_title": "FoodSafety.gov \u2013 4 Steps to Food Safety",
+      "reference_url": "https://www.foodsafety.gov/keep-food-safe/4-steps-to-food-safety"
+    },
+    {
+      "id": 10,
+      "name": "Dry Pasta",
+      "category": "Pantry/dry goods",
+      "storage_type": "AMBIENT",
+      "max_temp_c": null,
+      "default_location": "Pantry",
+      "storage_guidance": "Store in a cool, dry place in an airtight container to protect against humidity and pests.",
+      "reference_title": "FoodSafety.gov \u2013 4 Steps to Food Safety",
+      "reference_url": "https://www.foodsafety.gov/keep-food-safe/4-steps-to-food-safety"
+    }
+  ],
+  "activity_logs": [
+    {
+      "id": 1,
+      "action_type": "ITEM_ADDED",
+      "description": "Added 'organic milk' (1.0 liters) to Refrigerator",
+      "created_at": "2026-11-04 15:23:35.068378"
+    },
+    {
+      "id": 2,
+      "action_type": "TEMP_CHECKED",
+      "description": "Manual temperature check (WITHIN_LIMIT) recorded for 'organic milk' at -0.1\u00b0C",
+      "created_at": "2026-11-04 15:24:28.573411"
+    },
+    {
+      "id": 3,
+      "action_type": "TEMP_CHECKED",
+      "description": "Simulated temperature check (WITHIN_LIMIT) for 'organic milk' at 2.2\u00b0C (mode: safe)",
+      "created_at": "2026-11-04 17:54:08.407504"
+    },
+    {
+      "id": 4,
+      "action_type": "TEMP_CHECKED",
+      "description": "Simulated temperature check (ABOVE_LIMIT) for 'organic milk' at 7.0\u00b0C (mode: warning)",
+      "created_at": "2026-11-04 17:54:12.312178"
+    },
+    {
+      "id": 5,
+      "action_type": "TEMP_CHECKED",
+      "description": "Simulated temperature check (WITHIN_LIMIT) for 'organic milk' at 2.5\u00b0C (mode: safe)",
+      "created_at": "2026-11-04 17:54:13.910088"
+    },
+    {
+      "id": 6,
+      "action_type": "TEMP_CHECKED",
+      "description": "Manual temperature check (WITHIN_LIMIT) recorded for 'organic milk' at 2.0\u00b0C",
+      "created_at": "2026-11-04 18:17:28.979770"
+    },
+    {
+      "id": 7,
+      "action_type": "TEMP_CHECKED",
+      "description": "Simulated temperature check (ABOVE_LIMIT) for 'organic milk' at 9.8\u00b0C (mode: warning)",
+      "created_at": "2026-11-04 18:17:30.450972"
+    },
+    {
+      "id": 8,
+      "action_type": "TEMP_CHECKED",
+      "description": "Simulated temperature check (WITHIN_LIMIT) for 'organic milk' at 3.0\u00b0C (mode: safe)",
+      "created_at": "2026-11-04 18:17:32.072334"
+    },
+    {
+      "id": 9,
+      "action_type": "TEMP_CHECKED",
+      "description": "Simulated temperature check (ABOVE_LIMIT) for 'organic milk' at 8.9\u00b0C (mode: random)",
+      "created_at": "2026-11-04 18:17:33.546779"
+    },
+    {
+      "id": 10,
+      "action_type": "TEMP_CHECKED",
+      "description": "Simulated temperature check (ABOVE_LIMIT) for 'organic milk' at 6.8\u00b0C (mode: warning)",
+      "created_at": "2026-11-04 18:17:35.509165"
+    },
+    {
+      "id": 11,
+      "action_type": "TEMP_CHECKED",
+      "description": "Manual temperature check (WITHIN_LIMIT) recorded for 'organic milk' at 2.0\u00b0C",
+      "created_at": "2026-11-04 18:38:50.268983"
+    },
+    {
+      "id": 12,
+      "action_type": "TEMP_CHECKED",
+      "description": "Simulated temperature check (ABOVE_LIMIT) for 'organic milk' at 6.4\u00b0C (mode: warning)",
+      "created_at": "2026-11-04 18:38:56.163357"
+    },
+    {
+      "id": 13,
+      "action_type": "TEMP_CHECKED",
+      "description": "Simulated temperature check (WITHIN_LIMIT) for 'organic milk' at 3.9\u00b0C (mode: safe)",
+      "created_at": "2026-11-04 18:38:57.537354"
+    },
+    {
+      "id": 14,
+      "action_type": "ITEM_ADDED",
+      "description": "Added 'organic milk' (1.0 pieces) to Refrigerator",
+      "created_at": "2026-11-05 09:12:44.120920"
+    },
+    {
+      "id": 15,
+      "action_type": "TEMP_CHECKED",
+      "description": "Manual temperature check (WITHIN_LIMIT) recorded for 'organic milk' at 2.0\u00b0C",
+      "created_at": "2026-11-05 09:13:01.159112"
+    },
+    {
+      "id": 16,
+      "action_type": "TEMP_CHECKED",
+      "description": "Simulated temperature check (ABOVE_LIMIT) for 'organic milk' at 6.2\u00b0C (mode: warning)",
+      "created_at": "2026-11-05 09:13:03.404583"
+    },
+    {
+      "id": 17,
+      "action_type": "TEMP_CHECKED",
+      "description": "Simulated temperature check (ABOVE_LIMIT) for 'organic milk' at 6.5\u00b0C (mode: random)",
+      "created_at": "2026-11-05 09:13:05.140510"
+    }
+  ],
+  "inventory_items": [
+    {
+      "id": 1,
+      "catalogue_id": 1,
+      "custom_name": "organic milk",
+      "quantity": 1.0,
+      "unit": "liters",
+      "storage_location": "Refrigerator",
+      "purchase_date": "2026-11-04",
+      "expiry_date": "2026-11-11",
+      "created_at": "2026-11-04 15:23:35.047704",
+      "is_active": 1
+    },
+    {
+      "id": 2,
+      "catalogue_id": 1,
+      "custom_name": "organic milk",
+      "quantity": 1.0,
+      "unit": "pieces",
+      "storage_location": "Refrigerator",
+      "purchase_date": "2026-11-05",
+      "expiry_date": "2026-11-26",
+      "created_at": "2026-11-05 09:12:44.062160",
+      "is_active": 1
+    }
+  ],
+  "temperature_checks": [
+    {
+      "id": 1,
+      "inventory_id": 1,
+      "recorded_temp_c": -0.1,
+      "status": "WITHIN_LIMIT",
+      "message": "Within recommended maximum temperature limit: Recorded temperature (-0.1\u00b0C) is at or below the recommended maximum limit (4.0\u00b0C) for refrigerated storage. Storage guidance: Store in refrigerator at or below 4\u00b0C (40\u00b0F). Keep tightly closed in its original carton or bottle.",
+      "is_simulated": 0,
+      "checked_at": "2026-11-04 15:24:28.546307"
+    },
+    {
+      "id": 2,
+      "inventory_id": 1,
+      "recorded_temp_c": 2.2,
+      "status": "WITHIN_LIMIT",
+      "message": "Within recommended maximum temperature limit: Recorded temperature (2.2\u00b0C) is at or below the recommended maximum limit (4.0\u00b0C) for refrigerated storage. Storage guidance: Store in refrigerator at or below 4\u00b0C (40\u00b0F). Keep tightly closed in its original carton or bottle.",
+      "is_simulated": 1,
+      "checked_at": "2026-11-04 17:54:08.383030"
+    },
+    {
+      "id": 3,
+      "inventory_id": 1,
+      "recorded_temp_c": 7.0,
+      "status": "ABOVE_LIMIT",
+      "message": "Temperature warning: Recorded temperature (7.0\u00b0C) exceeds the recommended maximum limit of 4.0\u00b0C for refrigerated storage. Lower the storage temperature or relocate the food immediately to prevent rapid bacterial growth. Storage guidance: Store in refrigerator at or below 4\u00b0C (40\u00b0F). Keep tightly closed in its original carton or bottle.",
+      "is_simulated": 1,
+      "checked_at": "2026-11-04 17:54:12.298425"
+    },
+    {
+      "id": 4,
+      "inventory_id": 1,
+      "recorded_temp_c": 2.5,
+      "status": "WITHIN_LIMIT",
+      "message": "Within recommended maximum temperature limit: Recorded temperature (2.5\u00b0C) is at or below the recommended maximum limit (4.0\u00b0C) for refrigerated storage. Storage guidance: Store in refrigerator at or below 4\u00b0C (40\u00b0F). Keep tightly closed in its original carton or bottle.",
+      "is_simulated": 1,
+      "checked_at": "2026-11-04 17:54:13.887787"
+    },
+    {
+      "id": 5,
+      "inventory_id": 1,
+      "recorded_temp_c": 2.0,
+      "status": "WITHIN_LIMIT",
+      "message": "Within recommended maximum temperature limit: Recorded temperature (2.0\u00b0C) is at or below the recommended maximum limit (4.0\u00b0C) for refrigerated storage. Storage guidance: Store in refrigerator at or below 4\u00b0C (40\u00b0F). Keep tightly closed in its original carton or bottle.",
+      "is_simulated": 0,
+      "checked_at": "2026-11-04 18:17:28.961770"
+    },
+    {
+      "id": 6,
+      "inventory_id": 1,
+      "recorded_temp_c": 9.8,
+      "status": "ABOVE_LIMIT",
+      "message": "Temperature warning: Recorded temperature (9.8\u00b0C) exceeds the recommended maximum limit of 4.0\u00b0C for refrigerated storage. Lower the storage temperature or relocate the food immediately to prevent rapid bacterial growth. Storage guidance: Store in refrigerator at or below 4\u00b0C (40\u00b0F). Keep tightly closed in its original carton or bottle.",
+      "is_simulated": 1,
+      "checked_at": "2026-11-04 18:17:30.433463"
+    },
+    {
+      "id": 7,
+      "inventory_id": 1,
+      "recorded_temp_c": 3.0,
+      "status": "WITHIN_LIMIT",
+      "message": "Within recommended maximum temperature limit: Recorded temperature (3.0\u00b0C) is at or below the recommended maximum limit (4.0\u00b0C) for refrigerated storage. Storage guidance: Store in refrigerator at or below 4\u00b0C (40\u00b0F). Keep tightly closed in its original carton or bottle.",
+      "is_simulated": 1,
+      "checked_at": "2026-11-04 18:17:32.050990"
+    },
+    {
+      "id": 8,
+      "inventory_id": 1,
+      "recorded_temp_c": 8.9,
+      "status": "ABOVE_LIMIT",
+      "message": "Temperature warning: Recorded temperature (8.9\u00b0C) exceeds the recommended maximum limit of 4.0\u00b0C for refrigerated storage. Lower the storage temperature or relocate the food immediately to prevent rapid bacterial growth. Storage guidance: Store in refrigerator at or below 4\u00b0C (40\u00b0F). Keep tightly closed in its original carton or bottle.",
+      "is_simulated": 1,
+      "checked_at": "2026-11-04 18:17:33.533512"
+    },
+    {
+      "id": 9,
+      "inventory_id": 1,
+      "recorded_temp_c": 6.8,
+      "status": "ABOVE_LIMIT",
+      "message": "Temperature warning: Recorded temperature (6.8\u00b0C) exceeds the recommended maximum limit of 4.0\u00b0C for refrigerated storage. Lower the storage temperature or relocate the food immediately to prevent rapid bacterial growth. Storage guidance: Store in refrigerator at or below 4\u00b0C (40\u00b0F). Keep tightly closed in its original carton or bottle.",
+      "is_simulated": 1,
+      "checked_at": "2026-11-04 18:17:35.485971"
+    },
+    {
+      "id": 10,
+      "inventory_id": 1,
+      "recorded_temp_c": 2.0,
+      "status": "WITHIN_LIMIT",
+      "message": "Within recommended maximum temperature limit: Recorded temperature (2.0\u00b0C) is at or below the recommended maximum limit (4.0\u00b0C) for refrigerated storage. Storage guidance: Store in refrigerator at or below 4\u00b0C (40\u00b0F). Keep tightly closed in its original carton or bottle.",
+      "is_simulated": 0,
+      "checked_at": "2026-11-04 18:38:50.244275"
+    },
+    {
+      "id": 11,
+      "inventory_id": 1,
+      "recorded_temp_c": 6.4,
+      "status": "ABOVE_LIMIT",
+      "message": "Temperature warning: Recorded temperature (6.4\u00b0C) exceeds the recommended maximum limit of 4.0\u00b0C for refrigerated storage. Lower the storage temperature or relocate the food immediately to prevent rapid bacterial growth. Storage guidance: Store in refrigerator at or below 4\u00b0C (40\u00b0F). Keep tightly closed in its original carton or bottle.",
+      "is_simulated": 1,
+      "checked_at": "2026-11-04 18:38:56.148278"
+    },
+    {
+      "id": 12,
+      "inventory_id": 1,
+      "recorded_temp_c": 3.9,
+      "status": "WITHIN_LIMIT",
+      "message": "Within recommended maximum temperature limit: Recorded temperature (3.9\u00b0C) is at or below the recommended maximum limit (4.0\u00b0C) for refrigerated storage. Storage guidance: Store in refrigerator at or below 4\u00b0C (40\u00b0F). Keep tightly closed in its original carton or bottle.",
+      "is_simulated": 1,
+      "checked_at": "2026-11-04 18:38:57.439452"
+    },
+    {
+      "id": 13,
+      "inventory_id": 2,
+      "recorded_temp_c": 2.0,
+      "status": "WITHIN_LIMIT",
+      "message": "Within recommended maximum temperature limit: Recorded temperature (2.0\u00b0C) is at or below the recommended maximum limit (4.0\u00b0C) for refrigerated storage. Storage guidance: Store in refrigerator at or below 4\u00b0C (40\u00b0F). Keep tightly closed in its original carton or bottle.",
+      "is_simulated": 0,
+      "checked_at": "2026-11-05 09:13:01.096593"
+    },
+    {
+      "id": 14,
+      "inventory_id": 2,
+      "recorded_temp_c": 6.2,
+      "status": "ABOVE_LIMIT",
+      "message": "Temperature warning: Recorded temperature (6.2\u00b0C) exceeds the recommended maximum limit of 4.0\u00b0C for refrigerated storage. Lower the storage temperature or relocate the food immediately to prevent rapid bacterial growth. Storage guidance: Store in refrigerator at or below 4\u00b0C (40\u00b0F). Keep tightly closed in its original carton or bottle.",
+      "is_simulated": 1,
+      "checked_at": "2026-11-05 09:13:03.330361"
+    },
+    {
+      "id": 15,
+      "inventory_id": 2,
+      "recorded_temp_c": 6.5,
+      "status": "ABOVE_LIMIT",
+      "message": "Temperature warning: Recorded temperature (6.5\u00b0C) exceeds the recommended maximum limit of 4.0\u00b0C for refrigerated storage. Lower the storage temperature or relocate the food immediately to prevent rapid bacterial growth. Storage guidance: Store in refrigerator at or below 4\u00b0C (40\u00b0F). Keep tightly closed in its original carton or bottle.",
+      "is_simulated": 1,
+      "checked_at": "2026-11-05 09:13:05.119896"
+    }
+  ]
+}
