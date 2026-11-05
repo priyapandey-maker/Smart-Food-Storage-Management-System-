@@ -3047,15 +3047,23 @@ body {
    Target UI Design Styles (Matching Screenshot)
    ========================================================================== */
 
-/* Header Page Title with Green Underline */
-.header-page-title {
-  font-size: 1.55rem;
+/* Dashboard Page Heading */
+.dashboard-page-heading {
+  margin-bottom: 1.15rem;
+}
+
+.dashboard-page-heading h2 {
+  font-size: 1.65rem;
   font-weight: 700;
-  color: var(--color-text-main);
-  border-bottom: 3.5px solid var(--color-primary);
-  padding-bottom: 0.15rem;
-  display: inline-block;
+  color: var(--color-text-main, #0F172A);
+  letter-spacing: -0.02em;
   line-height: 1.2;
+}
+
+.dashboard-page-heading p {
+  color: var(--color-text-muted, #475569);
+  font-size: 0.85rem;
+  margin-top: 0.25rem;
 }
 
 /* Sidebar Promotional Callout */

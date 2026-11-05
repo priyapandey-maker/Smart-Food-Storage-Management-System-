@@ -100,6 +100,10 @@ export default function DashboardPage() {
   if (isLoading) {
     return (
       <div className="page-dashboard">
+        <div className="dashboard-page-heading">
+          <h2>Dashboard</h2>
+          <p>Real-time overview of stored food items, expiry notifications, temperature warnings, and recent activity.</p>
+        </div>
         <LoadingState message="Loading dashboard metrics and active storage conditions..." />
       </div>
     );
@@ -108,6 +112,10 @@ export default function DashboardPage() {
   if (fetchError) {
     return (
       <div className="page-dashboard">
+        <div className="dashboard-page-heading">
+          <h2>Dashboard</h2>
+          <p>Real-time overview of stored food items, expiry notifications, temperature warnings, and recent activity.</p>
+        </div>
         <ErrorState
           title="Unable to load dashboard"
           message={fetchError}
@@ -131,7 +139,15 @@ export default function DashboardPage() {
   return (
     <div className="page-dashboard">
       {/* =================================================================== */}
-      {/* 1. Dark Green Hero Overview Banner                                  */}
+      {/* 1. Page Heading                                                     */}
+      {/* =================================================================== */}
+      <div className="dashboard-page-heading">
+        <h2>Dashboard</h2>
+        <p>Real-time overview of stored food items, expiry notifications, temperature warnings, and recent activity.</p>
+      </div>
+
+      {/* =================================================================== */}
+      {/* 2. Dark Green Hero Overview Banner                                  */}
       {/* =================================================================== */}
       <div className="system-status-hero">
         <div className="hero-top-bar">
@@ -143,9 +159,9 @@ export default function DashboardPage() {
               </svg>
             </div>
             <div>
-              <h2 className="hero-heading">System Status Overview</h2>
+              <h3 className="hero-heading">System Status Overview</h3>
               <p className="hero-subheading">
-                Real-time overview of stored food items, expiry notifications, temperature warnings, and recent activity.
+                Live monitoring of active food storage metrics and temperature safety conditions.
               </p>
             </div>
           </div>
