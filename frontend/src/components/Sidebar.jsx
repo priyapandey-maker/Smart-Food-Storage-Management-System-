@@ -14,30 +14,7 @@ export default function Sidebar({ isOpen, isCollapsed = false, onClose }) {
       {isOpen && <div className="sidebar-backdrop" onClick={onClose} />}
 
       <aside className={`sidebar ${isOpen ? 'open' : ''} ${isCollapsed ? 'collapsed' : ''}`}>
-        {/* Brand Header */}
-        <div className="sidebar-brand">
-          <div className="brand-icon" title="FreshGuard">
-            <svg
-              viewBox="0 0 24 24"
-              width="22"
-              height="22"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-              <path d="M9 12l2 2 4-4" />
-            </svg>
-          </div>
-          <div className="brand-text">
-            <h1>FreshGuard</h1>
-            <p>Smart Food Storage and Inventory Management System</p>
-          </div>
-        </div>
-
-        {/* Navigation Links */}
+        {/* Navigation Links (Sidebar begins directly below global header) */}
         <nav className="sidebar-nav">
           <NavLink
             to="/"

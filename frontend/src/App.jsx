@@ -41,29 +41,33 @@ export default function App() {
   return (
     <BrowserRouter>
       <div className={`app-layout ${isCollapsed ? 'sidebar-collapsed' : ''}`}>
-        {/* Left Sidebar */}
-        <Sidebar
-          isOpen={mobileMenuOpen}
+        {/* Global Full-Width Top Navigation Bar (YouTube style) */}
+        <Header
+          onToggleSidebar={handleToggleSidebar}
+          onToggleMobileMenu={handleToggleSidebar}
           isCollapsed={isCollapsed}
-          onClose={() => setMobileMenuOpen(false)}
         />
 
-        {/* Main Content Area */}
-        <div className="main-wrapper">
-          <Header
-            onToggleSidebar={handleToggleSidebar}
-            onToggleMobileMenu={handleToggleSidebar}
+        {/* Application Body: Sidebar + Main Content */}
+        <div className="app-body">
+          {/* Sidebar Navigation below Header */}
+          <Sidebar
+            isOpen={mobileMenuOpen}
             isCollapsed={isCollapsed}
+            onClose={() => setMobileMenuOpen(false)}
           />
 
-          <main className="content-container">
-            <Routes>
-              <Route path="/" element={<DashboardPage />} />
-              <Route path="/inventory" element={<InventoryPage />} />
-              <Route path="/checker" element={<TemperatureCheckerPage />} />
-              <Route path="/alerts" element={<AlertsHistoryPage />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
+          {/* Main Content Area automatically expands when sidebar collapses */}
+          <main className="main-content">
+            <div className="content-container">
+              <Routes>
+                <Route path="/" element={<DashboardPage />} />
+                <Route path="/inventory" element={<InventoryPage />} />
+                <Route path="/checker" element={<TemperatureCheckerPage />} />
+                <Route path="/alerts" element={<AlertsHistoryPage />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </div>
           </main>
         </div>
       </div>
