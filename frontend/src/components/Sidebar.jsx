@@ -1,7 +1,27 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 
 export default function Sidebar({ isOpen, isCollapsed = false, onClose }) {
+  // Mobile drawer escape listener and scroll locking
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        onClose?.();
+      }
+    };
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, onClose]);
+
   const handleNavClick = () => {
     if (onClose && typeof window !== 'undefined' && window.innerWidth <= 768) {
       onClose();
@@ -11,9 +31,18 @@ export default function Sidebar({ isOpen, isCollapsed = false, onClose }) {
   return (
     <>
       {/* Mobile backdrop overlay */}
-      {isOpen && <div className="sidebar-backdrop" onClick={onClose} />}
+      {isOpen && (
+        <div
+          className="sidebar-backdrop"
+          onClick={onClose}
+          aria-hidden="true"
+        />
+      )}
 
-      <aside className={`sidebar ${isOpen ? 'open' : ''} ${isCollapsed ? 'collapsed' : ''}`}>
+      <aside
+        className={`sidebar ${isOpen ? 'open' : ''} ${isCollapsed ? 'collapsed' : ''}`}
+        aria-label="Main Navigation"
+      >
         {/* Navigation Links (Sidebar begins directly below global header) */}
         <nav className="sidebar-nav">
           <NavLink

@@ -3030,7 +3030,6 @@ body {
   .modal-container {
     margin: 0.5rem;
     width: calc(100% - 1rem);
-    padding: 1.25rem;
   }
 
   .btn {
@@ -4199,6 +4198,7 @@ body {
   border-radius: var(--radius-lg, 14px);
   padding: 1.15rem 1.25rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
 }
 
 .table-card-header {
@@ -4226,11 +4226,13 @@ body {
 
 .table-scroll-wrapper {
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   margin: 0 -1.25rem -1.25rem -1.25rem;
 }
 
 .modern-inventory-table {
   width: 100%;
+  min-width: 680px;
   border-collapse: collapse;
   text-align: left;
   font-size: 0.825rem;
@@ -6176,10 +6178,12 @@ button.summary-status-pill:hover {
 .history-table-responsive {
   width: 100%;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .custom-history-table {
   width: 100%;
+  min-width: 650px;
   border-collapse: collapse;
   text-align: left;
 }
@@ -6446,10 +6450,48 @@ button.summary-status-pill:hover {
   transform: translateY(-1px);
 }
 
-/* Responsive Adaptations for Alerts & History */
+/* ==========================================================================
+   Complete Mobile & Tablet Responsiveness System (320px - 1024px)
+   ========================================================================== */
+
+/* 1. Tablet & Below (<= 1024px) */
 @media (max-width: 1024px) {
+  .hero-metrics-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.85rem;
+  }
+
+  .standards-cards-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .dashboard-two-col-grid {
+    grid-template-columns: 1fr;
+    gap: 1.15rem;
+  }
+
+  .inventory-summary-cards-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.85rem;
+  }
+
+  .guidance-expanded-panel {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .checker-two-column-layout {
+    grid-template-columns: 1fr;
+    gap: 1.15rem;
+  }
+
+  .standards-four-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
   .alerts-summary-grid {
     grid-template-columns: 1fr;
+    gap: 1rem;
   }
 
   .preservation-cards-grid {
@@ -6461,7 +6503,93 @@ button.summary-status-pill:hover {
   }
 }
 
+/* 2. Mobile Landscape & Small Tablet (<= 768px) */
 @media (max-width: 768px) {
+  /* Prevent iOS Safari auto-zoom on input focus */
+  input[type="text"],
+  input[type="number"],
+  input[type="date"],
+  input[type="search"],
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+
+  .content-container {
+    padding: 1.15rem 0.85rem;
+  }
+
+  /* Header Compact Layout */
+  .app-header {
+    padding: 0 0.85rem;
+  }
+
+  .header-left {
+    gap: 0.65rem;
+  }
+
+  .sidebar-toggle-btn {
+    width: 42px;
+    height: 42px;
+    min-width: 42px;
+    min-height: 42px;
+  }
+
+  .header-brand {
+    gap: 0.55rem;
+  }
+
+  .brand-icon {
+    width: 32px;
+    height: 32px;
+  }
+
+  .brand-name {
+    font-size: 1.1rem;
+  }
+
+  .brand-subtitle {
+    display: none;
+  }
+
+  /* Dashboard Adjustments */
+  .dashboard-quick-actions-row {
+    grid-template-columns: 1fr;
+    gap: 0.65rem;
+  }
+
+  .qa-card {
+    min-height: 48px;
+    padding: 0.85rem 1rem;
+  }
+
+  /* Inventory Page Toolbar */
+  .inventory-modern-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.65rem;
+  }
+
+  .toolbar-search-field,
+  .toolbar-select-container,
+  .toolbar-select {
+    width: 100%;
+    min-height: 42px;
+  }
+
+  .toolbar-btn-clear {
+    width: 100%;
+    min-height: 42px;
+    justify-content: center;
+  }
+
+  .toolbar-count-badge {
+    width: 100%;
+    margin-left: 0;
+    text-align: center;
+  }
+
+  /* Alerts & History Page */
   .alerts-page-heading-row {
     flex-direction: column;
     align-items: flex-start;
@@ -6469,22 +6597,20 @@ button.summary-status-pill:hover {
 
   .section-header-row {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
+    gap: 0.85rem;
   }
 
   .history-toolbar-right {
     width: 100%;
-    justify-content: flex-start;
-  }
-
-  .preservation-cards-grid {
-    grid-template-columns: 1fr;
+    flex-wrap: wrap;
+    gap: 0.5rem;
   }
 
   .alerts-summary-card {
     flex-direction: column;
     align-items: flex-start;
-    gap: 1.25rem;
+    gap: 1.15rem;
   }
 
   .summary-card-divider {
@@ -6496,5 +6622,274 @@ button.summary-status-pill:hover {
     justify-content: flex-start;
     padding-top: 0.75rem;
     border-top: 1px solid var(--color-border, #E2E8F0);
+  }
+
+  .summary-nav-link {
+    width: 100%;
+    justify-content: space-between;
+    min-height: 44px;
+  }
+}
+
+/* 3. Phablet & Mobile Portrait (<= 640px) */
+@media (max-width: 640px) {
+  /* System Hero */
+  .system-status-hero {
+    padding: 1rem;
+  }
+
+  .hero-top-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.65rem;
+  }
+
+  /* Attention Items in Dashboard */
+  .attention-clean-row {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .attention-right-col {
+    width: 100%;
+    justify-content: flex-end;
+    margin-top: 0.25rem;
+  }
+
+  .btn-action-outline {
+    min-height: 36px;
+    padding: 0.35rem 0.85rem;
+  }
+
+  /* Standards Card Grid */
+  .standards-cards-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .standards-four-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Inventory Add Food Header */
+  .inventory-header-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .btn-add-food-primary {
+    width: 100%;
+    justify-content: center;
+    min-height: 44px;
+  }
+
+  /* Catalogue Carousel Touch Optimization */
+  .catalogue-cards-carousel {
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x mandatory;
+    padding-bottom: 0.65rem;
+  }
+
+  .modern-cat-card {
+    scroll-snap-align: start;
+    min-width: 200px;
+    max-width: 220px;
+  }
+
+  .btn-add-cat-preset {
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Temperature Checker Mobile Form */
+  .manual-temp-form-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.65rem;
+  }
+
+  .manual-temp-input-group {
+    width: 100%;
+  }
+
+  .manual-temp-input {
+    min-height: 44px;
+    width: 100%;
+  }
+
+  .btn-check-temp-submit {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
+  }
+
+  .eval-temp-display-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.85rem;
+  }
+
+  .eval-temp-right {
+    align-items: flex-start;
+    width: 100%;
+  }
+
+  .result-status-pill {
+    min-height: 36px;
+  }
+
+  .guidance-detail-container {
+    flex-direction: column-reverse;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  /* Preservation Cards Grid */
+  .preservation-cards-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Dialog / Modal Mobile Optimizations */
+  .modal-backdrop {
+    padding: 0.5rem;
+    align-items: center;
+  }
+
+  .modal-container {
+    width: 100%;
+    max-width: 100%;
+    max-height: 92vh;
+    margin: 0;
+  }
+
+  .modal-header {
+    padding: 1rem 1.15rem;
+  }
+
+  .modal-body {
+    padding: 1rem 1.15rem;
+  }
+
+  .modal-actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+
+  .modal-actions button,
+  .modal-actions .btn {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
+  }
+}
+
+/* 4. Compact Mobile (<= 480px) */
+@media (max-width: 480px) {
+  .content-container {
+    padding: 0.85rem 0.65rem;
+  }
+
+  .dashboard-page-heading h2,
+  .inventory-main-title,
+  .checker-page-heading h2,
+  .section-title {
+    font-size: 1.35rem;
+  }
+
+  .activity-heading-line {
+    flex-wrap: wrap;
+    gap: 0.2rem;
+  }
+
+  .activity-time {
+    font-size: 0.7rem;
+  }
+
+  .simulation-buttons-three-row {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .btn-sim-pill {
+    min-height: 44px;
+    justify-content: center;
+    width: 100%;
+  }
+
+  .segmented-filter-bar {
+    width: 100%;
+    display: flex;
+  }
+
+  .seg-btn {
+    flex: 1;
+    text-align: center;
+    padding: 0.45rem 0.35rem;
+    min-height: 40px;
+    font-size: 0.75rem;
+  }
+
+  .time-select-container {
+    flex: 1;
+    min-width: 120px;
+  }
+
+  .time-select-control {
+    width: 100%;
+    min-height: 40px;
+  }
+
+  .btn-toggle-filters {
+    min-height: 40px;
+    padding: 0.4rem 0.75rem;
+  }
+
+  .history-advanced-filters-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.65rem;
+  }
+
+  .filter-item-col {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .advanced-select {
+    width: 100%;
+    min-height: 40px;
+  }
+}
+
+/* 5. Extra Narrow Screens (<= 360px: iPhone SE, Galaxy Fold outer screen, etc.) */
+@media (max-width: 360px) {
+  .hero-metrics-grid {
+    grid-template-columns: 1fr;
+    gap: 0.65rem;
+  }
+
+  .inventory-summary-cards-grid {
+    grid-template-columns: 1fr;
+    gap: 0.65rem;
+  }
+
+  .brand-name {
+    font-size: 1.025rem;
+  }
+
+  .sidebar-toggle-btn {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
+  }
+
+  .hero-stat-card,
+  .summary-card {
+    padding: 0.75rem 0.85rem;
   }
 }
