@@ -1,8 +1,11 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import List
 
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -90,3 +93,50 @@ def get_catalogue_item(item_id: int, db: Session = Depends(get_db)):
             detail=f"Food catalogue item with ID {item_id} not found",
         )
     return item
+
+
+# ==============================================================================
+# Unified Single-Service SPA Serving (Frontend React dist)
+# Only mounted when frontend/dist exists (production build or built locally)
+# ==============================================================================
+frontend_dist_dir = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
+
+if frontend_dist_dir.is_dir():
+    # 1. Mount static assets folder (Vite outputs js, css into dist/assets)
+    assets_dir = frontend_dist_dir / "assets"
+    if assets_dir.is_dir():
+        app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="frontend_assets")
+
+    # 2. Root route: serve frontend SPA index.html
+    @app.get("/", include_in_schema=False)
+    def serve_frontend_root():
+        index_file = frontend_dist_dir / "index.html"
+        if index_file.is_file():
+            return FileResponse(index_file)
+        raise HTTPException(status_code=404, detail="Frontend index.html not found")
+
+    # 3. Catch-all client-side route fallback for React Router SPA (e.g. /inventory, /checker, /alerts)
+    @app.get("/{full_path:path}", include_in_schema=False)
+    def serve_frontend_spa(full_path: str):
+        # Exclude backend API, documentation and health routes so they never get captured by the SPA fallback
+        normalized = full_path.strip("/")
+        if (
+            normalized.startswith("api")
+            or normalized.startswith("docs")
+            or normalized.startswith("redoc")
+            or normalized == "openapi.json"
+            or normalized == "health"
+        ):
+            raise HTTPException(status_code=404, detail="Not Found")
+
+        # If a requested static file exists directly in dist/ (e.g. favicon.svg, robots.txt, etc.)
+        requested_file = frontend_dist_dir / full_path
+        if requested_file.is_file():
+            return FileResponse(requested_file)
+
+        # Fallback to index.html for React Router client routes
+        index_file = frontend_dist_dir / "index.html"
+        if index_file.is_file():
+            return FileResponse(index_file)
+
+        raise HTTPException(status_code=404, detail="Not Found")

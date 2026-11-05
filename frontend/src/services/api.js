@@ -1,9 +1,17 @@
 /**
  * Centralized API service layer for FreshGuard
  * Connects directly to the FastAPI backend.
+ *
+ * In development mode (import.meta.env.DEV), defaults to "http://127.0.0.1:8000" if unset.
+ * In production mode (import.meta.env.PROD), defaults to "" (relative path) so requests
+ * go to /api/... and /health on the same origin (unified FastAPI SPA serving).
  */
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL !== undefined
+    ? import.meta.env.VITE_API_BASE_URL
+    : import.meta.env.DEV
+      ? 'http://127.0.0.1:8000'
+      : '';
 
 /**
  * Shared fetch helper with error handling and JSON parsing.
@@ -25,7 +33,7 @@ async function request(endpoint, options = {}) {
     response = await fetch(url, config);
   } catch (networkError) {
     throw new Error(
-      `Unable to reach backend server at ${API_BASE_URL}. Please verify the FastAPI service is running.`
+      `Unable to reach backend server${API_BASE_URL ? ` at ${API_BASE_URL}` : ''}. Please verify the FastAPI service is running.`
     );
   }
 
