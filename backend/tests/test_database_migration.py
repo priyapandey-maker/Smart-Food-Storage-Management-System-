@@ -45,6 +45,13 @@ def test_normalize_database_url_postgresql_scheme():
     assert "sslmode=require" in normalized
 
 
+def test_normalize_database_url_psycopg2_scheme():
+    raw = "postgresql+psycopg2://user:password@ep-sample-pooler.us-east-2.aws.neon.tech/neondb"
+    normalized = normalize_database_url(raw)
+    assert normalized.startswith("postgresql+psycopg://")
+    assert "sslmode=require" in normalized
+
+
 def test_normalize_database_url_preserves_existing_sslmode():
     raw = "postgresql+psycopg://user:password@host/db?sslmode=require&channel_binding=require"
     normalized = normalize_database_url(raw)
@@ -366,6 +373,159 @@ def test_resumable_partial_inventory_and_history(tmp_path):
         assert res2["inventory_added"] == 0
         assert res2["checks_added"] == 0
         assert res2["logs_added"] == 0
+
+    test_engine.dispose()
+
+
+def test_fresh_database_full_migration(tmp_path):
+    """Scenario 1: Fresh database migration from empty state.
+    Verifies full migration of catalogues, inventory, checks, and logs,
+    and verifies that a second run adds 0 duplicates."""
+    test_db_path = tmp_path / "fresh_migration_test.db"
+    test_db_url = f"sqlite:///{test_db_path.as_posix()}"
+
+    test_engine = create_engine(test_db_url, connect_args={"check_same_thread": False})
+    Base.metadata.create_all(bind=test_engine)
+    TestSession = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+
+    records = export_sqlite_records()
+    backup_inventory = records.get("inventory_items", [])
+    backup_checks = records.get("temperature_checks", [])
+    backup_logs = records.get("activity_logs", [])
+
+    # 1. Run migration on fresh empty database
+    with TestSession() as db:
+        res = auto_preserve_and_migrate(db)
+        assert res is not None
+        assert res["inventory_added"] == len(backup_inventory)
+        assert res["checks_added"] == len(backup_checks)
+        assert res["logs_added"] == len(backup_logs)
+        assert res["conflicts_detected"] == 0
+
+        # Verify all tables have records
+        assert db.query(FoodCatalogue).count() >= 10
+        assert db.query(InventoryItem).count() == len(backup_inventory)
+        assert db.query(TemperatureCheck).count() == len(backup_checks)
+        assert db.query(ActivityLog).count() == len(backup_logs)
+
+    # 2. Run migration a second time: must add zero records
+    with TestSession() as db:
+        res2 = auto_preserve_and_migrate(db)
+        assert res2["catalogues_added"] == 0
+        assert res2["inventory_added"] == 0
+        assert res2["checks_added"] == 0
+        assert res2["logs_added"] == 0
+        assert res2["conflicts_detected"] == 0
+
+    test_engine.dispose()
+
+
+def test_handling_conflicting_ids_safely(tmp_path):
+    """Scenario 9: Handle conflicting IDs safely.
+    When a live database record exists with an ID matching a backup item but with divergent data,
+    the live record must be preserved and not overwritten, a conflict must be reported,
+    and non-conflicting backup records must still be imported."""
+    test_db_path = tmp_path / "conflict_test.db"
+    test_db_url = f"sqlite:///{test_db_path.as_posix()}"
+
+    test_engine = create_engine(test_db_url, connect_args={"check_same_thread": False})
+    Base.metadata.create_all(bind=test_engine)
+    TestSession = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+
+    records = export_sqlite_records()
+    backup_inventory = records.get("inventory_items", [])
+    if len(backup_inventory) < 2:
+        pytest.skip("Test requires at least 2 backup inventory items to test conflict handling")
+
+    conflict_id = backup_inventory[0]["id"]
+
+    # 1. Pre-insert a live user item with conflict_id but DIFFERENT data
+    with TestSession() as db:
+        seed_catalogue_data(db)
+        live_user_item = InventoryItem(
+            id=conflict_id,
+            catalogue_id=1,
+            custom_name="Live User Ribeye Steak",
+            quantity=5.0,
+            unit="kg",
+            storage_location="Freezer",
+            purchase_date=datetime.now(timezone.utc).date(),
+            expiry_date=datetime.now(timezone.utc).date(),
+            created_at=datetime.now(timezone.utc),
+            is_active=True,
+        )
+        db.add(live_user_item)
+        db.commit()
+
+        assert db.query(InventoryItem).count() == 1
+
+    # 2. Run auto_preserve_and_migrate
+    with TestSession() as db:
+        res = auto_preserve_and_migrate(db)
+        assert res is not None
+
+        # Conflict must be detected and reported
+        assert res["conflicts_detected"] >= 1
+
+        # Live user item MUST NOT be overwritten
+        retained = db.query(InventoryItem).filter(InventoryItem.id == conflict_id).first()
+        assert retained is not None
+        assert retained.custom_name == "Live User Ribeye Steak"
+        assert retained.quantity == 5.0
+        assert retained.storage_location == "Freezer"
+
+        # Non-conflicting backup items MUST be imported
+        non_conflict_item = db.query(InventoryItem).filter(InventoryItem.id == backup_inventory[1]["id"]).first()
+        assert non_conflict_item is not None
+        assert non_conflict_item.custom_name == backup_inventory[1].get("custom_name")
+
+    test_engine.dispose()
+
+
+def test_foreign_key_relationship_integrity(tmp_path):
+    """Scenario 6: Verify all foreign-key relationships remain completely intact
+    after migration across inventory items and temperature checks."""
+    test_db_path = tmp_path / "fk_integrity_test.db"
+    test_db_url = f"sqlite:///{test_db_path.as_posix()}"
+
+    test_engine = create_engine(test_db_url, connect_args={"check_same_thread": False})
+    Base.metadata.create_all(bind=test_engine)
+    TestSession = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+
+    with TestSession() as db:
+        auto_preserve_and_migrate(db)
+
+        # Verify every InventoryItem points to a valid FoodCatalogue
+        items = db.query(InventoryItem).all()
+        assert len(items) > 0
+        for item in items:
+            assert item.catalogue is not None
+            assert item.catalogue.id == item.catalogue_id
+
+        # Verify every TemperatureCheck points to a valid InventoryItem
+        checks = db.query(TemperatureCheck).all()
+        assert len(checks) > 0
+        for check in checks:
+            assert check.inventory_item is not None
+            assert check.inventory_item.id == check.inventory_id
+
+    test_engine.dispose()
+
+
+def test_sequence_synchronization_helper(tmp_path):
+    """Scenario 8: Verify sequence synchronization function executes safely on any dialect."""
+    from app.migrate import sync_postgres_sequences
+
+    test_db_path = tmp_path / "seq_sync_test.db"
+    test_db_url = f"sqlite:///{test_db_path.as_posix()}"
+
+    test_engine = create_engine(test_db_url, connect_args={"check_same_thread": False})
+    Base.metadata.create_all(bind=test_engine)
+    TestSession = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+
+    with TestSession() as db:
+        # Should gracefully return without error when dialect is SQLite
+        sync_postgres_sequences(db)
 
     test_engine.dispose()
 

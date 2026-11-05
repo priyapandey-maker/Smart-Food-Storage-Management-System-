@@ -23,6 +23,8 @@ def normalize_database_url(raw_url: str) -> str:
     # SQLAlchemy with psycopg 3 requires the postgresql+psycopg:// dialect
     if url.startswith("postgres://"):
         url = url.replace("postgres://", "postgresql+psycopg://", 1)
+    elif url.startswith("postgresql+psycopg2://"):
+        url = url.replace("postgresql+psycopg2://", "postgresql+psycopg://", 1)
     elif url.startswith("postgresql://") and not url.startswith("postgresql+"):
         url = url.replace("postgresql://", "postgresql+psycopg://", 1)
 

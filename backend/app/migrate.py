@@ -116,12 +116,13 @@ def migrate_records_to_db(
     records: Dict[str, List[Dict[str, Any]]],
     db: Session,
 ) -> Dict[str, int]:
-    """Migrate exported records idempotently into the current database session."""
+    """Migrate exported records idempotently and resumably into the current database session."""
     stats = {
         "catalogues_added": 0,
         "inventory_added": 0,
         "checks_added": 0,
         "logs_added": 0,
+        "conflicts_detected": 0,
     }
 
     # 1. First ensure standard catalogue seed is executed
@@ -160,12 +161,18 @@ def migrate_records_to_db(
         logger.error("Failed to commit food catalogues during migration: %s", exc)
         raise
 
-    # 3. Migrate inventory items
-    existing_inv_ids = {inv.id for inv in db.query(InventoryItem.id).all()}
+    # 3. Migrate inventory items with safe conflict detection
+    existing_inv_items = {inv.id: inv for inv in db.query(InventoryItem).all()}
+    conflicting_inv_ids = set()
+
     for inv in records.get("inventory_items", []):
         old_id = inv.get("id")
-        if old_id is not None and old_id not in existing_inv_ids:
-            target_cat_id = cat_id_mapping.get(inv["catalogue_id"], inv["catalogue_id"])
+        if old_id is None:
+            continue
+
+        target_cat_id = cat_id_mapping.get(inv["catalogue_id"], inv["catalogue_id"])
+
+        if old_id not in existing_inv_items:
             item = InventoryItem(
                 id=old_id,
                 catalogue_id=target_cat_id,
@@ -180,6 +187,27 @@ def migrate_records_to_db(
             )
             db.add(item)
             stats["inventory_added"] += 1
+        else:
+            # Item already exists: verify whether it is an identical preserved record or a conflicting live record
+            existing_item = existing_inv_items[old_id]
+            if (
+                existing_item.custom_name != inv.get("custom_name")
+                or existing_item.catalogue_id != target_cat_id
+            ):
+                conflicting_inv_ids.add(old_id)
+                stats["conflicts_detected"] += 1
+                logger.warning(
+                    "ID conflict detected on InventoryItem ID %d: live database record ('%s', cat_id=%d) "
+                    "differs from backup record ('%s', cat_id=%d). "
+                    "Preserving live database record and skipping backup overwrite.",
+                    old_id,
+                    existing_item.custom_name,
+                    existing_item.catalogue_id,
+                    inv.get("custom_name"),
+                    target_cat_id,
+                )
+            else:
+                logger.debug("InventoryItem ID %d already preserved in target database.", old_id)
 
     try:
         db.commit()
@@ -188,16 +216,30 @@ def migrate_records_to_db(
         logger.error("Failed to commit inventory items during migration: %s", exc)
         raise
 
-    # 4. Migrate temperature checks
+    # 4. Migrate temperature checks (safely associating only with valid, non-conflicting parent items)
     existing_check_ids = {tc.id for tc in db.query(TemperatureCheck.id).all()}
     current_inv_ids = {inv.id for inv in db.query(InventoryItem.id).all()}
 
     for tc in records.get("temperature_checks", []):
         check_id = tc.get("id")
-        if check_id is not None and check_id not in existing_check_ids and tc.get("inventory_id") in current_inv_ids:
+        if check_id is None or check_id in existing_check_ids:
+            continue
+
+        parent_inv_id = tc.get("inventory_id")
+        if parent_inv_id in conflicting_inv_ids:
+            stats["conflicts_detected"] += 1
+            logger.warning(
+                "Skipping backup temperature check ID %d because parent inventory item ID %d "
+                "is a conflicting live record.",
+                check_id,
+                parent_inv_id,
+            )
+            continue
+
+        if parent_inv_id in current_inv_ids:
             check = TemperatureCheck(
                 id=check_id,
-                inventory_id=tc["inventory_id"],
+                inventory_id=parent_inv_id,
                 recorded_temp_c=float(tc["recorded_temp_c"]),
                 status=tc["status"],
                 message=tc["message"],
@@ -278,6 +320,7 @@ def auto_preserve_and_migrate(db: Session, sqlite_path: Optional[Path] = None) -
             "inventory_added": 0,
             "checks_added": 0,
             "logs_added": 0,
+            "conflicts_detected": 0,
         }
 
     logger.info(
