@@ -61,6 +61,7 @@
 
   /* Dimensions & Spacing */
   --sidebar-width: 260px;
+  --sidebar-collapsed-width: 72px;
   --header-height: 56px;
   --radius-sm: 6px;
   --radius-md: 10px;
@@ -146,6 +147,7 @@ body {
   height: 100vh;
   z-index: 40;
   flex-shrink: 0;
+  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .sidebar-brand {
@@ -234,6 +236,100 @@ body {
 }
 
 /* ==========================================================================
+   Collapsible Sidebar Rail (Desktop)
+   ========================================================================== */
+
+.sidebar.collapsed {
+  width: var(--sidebar-collapsed-width);
+}
+
+.sidebar.collapsed .sidebar-brand {
+  padding: 1.25rem 0.5rem;
+  justify-content: center;
+}
+
+.sidebar.collapsed .brand-text {
+  display: none;
+}
+
+.sidebar.collapsed .brand-icon {
+  margin: 0 auto;
+}
+
+.sidebar.collapsed .sidebar-nav {
+  padding: 1.25rem 0.5rem;
+  gap: 0.5rem;
+}
+
+.sidebar.collapsed .nav-link {
+  justify-content: center;
+  padding: 0.75rem 0;
+  gap: 0;
+  position: relative;
+}
+
+.sidebar.collapsed .nav-link span {
+  display: none;
+}
+
+.sidebar.collapsed .sidebar-promo-card {
+  display: none;
+}
+
+.sidebar.collapsed .sidebar-footer {
+  display: none;
+}
+
+/* Tooltip on hover in collapsed mode */
+.sidebar.collapsed .nav-link::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: calc(100% + 12px);
+  top: 50%;
+  transform: translateY(-50%) scale(0.95);
+  background-color: #0F172A;
+  color: #FFFFFF;
+  font-size: 0.775rem;
+  font-weight: 600;
+  white-space: nowrap;
+  padding: 0.35rem 0.65rem;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s ease;
+  z-index: 1000;
+}
+
+.sidebar.collapsed .nav-link::before {
+  content: '';
+  position: absolute;
+  left: calc(100% + 6px);
+  top: 50%;
+  transform: translateY(-50%);
+  border-width: 5px 6px 5px 0;
+  border-style: solid;
+  border-color: transparent #0F172A transparent transparent;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.15s ease, visibility 0.15s ease;
+  z-index: 1000;
+}
+
+.sidebar.collapsed .nav-link:hover::after {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(-50%) scale(1);
+}
+
+.sidebar.collapsed .nav-link:hover::before {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* ==========================================================================
    Header Bar
    ========================================================================== */
 
@@ -256,14 +352,27 @@ body {
   gap: 1rem;
 }
 
+.sidebar-toggle-btn,
 .mobile-menu-btn {
-  display: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: none;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   padding: 0.4rem;
   cursor: pointer;
   color: var(--color-text-main);
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.sidebar-toggle-btn:hover,
+.mobile-menu-btn:hover {
+  background-color: var(--color-bg-app);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 
 .header-title-crumb {
@@ -2701,17 +2810,21 @@ body {
 }
 
 @media (max-width: 768px) {
-  .sidebar {
-    position: fixed;
+  .sidebar,
+  .sidebar.collapsed {
+    position: fixed !important;
     top: 0;
-    left: -280px;
+    left: -280px !important;
+    width: 280px !important;
     height: 100vh;
     box-shadow: var(--shadow-md);
-    transition: transform 0.25s ease;
+    transition: transform 0.25s ease !important;
+    z-index: 50;
   }
 
-  .sidebar.open {
-    transform: translateX(280px);
+  .sidebar.open,
+  .sidebar.collapsed.open {
+    transform: translateX(280px) !important;
   }
 
   .sidebar-backdrop {
@@ -2722,10 +2835,48 @@ body {
     right: 0;
     bottom: 0;
     background-color: rgba(15, 23, 42, 0.4);
-    z-index: 35;
+    z-index: 45;
   }
 
-  .mobile-menu-btn {
+  .sidebar.collapsed .sidebar-brand {
+    padding: 1.5rem 1.25rem 1.25rem !important;
+    justify-content: flex-start !important;
+  }
+
+  .sidebar.collapsed .brand-text {
+    display: block !important;
+  }
+
+  .sidebar.collapsed .sidebar-nav {
+    padding: 1.25rem 0.75rem !important;
+    gap: 0.35rem !important;
+  }
+
+  .sidebar.collapsed .nav-link {
+    justify-content: flex-start !important;
+    padding: 0.75rem 1rem !important;
+    gap: 0.75rem !important;
+  }
+
+  .sidebar.collapsed .nav-link span {
+    display: inline !important;
+  }
+
+  .sidebar.collapsed .sidebar-promo-card {
+    display: flex !important;
+  }
+
+  .sidebar.collapsed .sidebar-footer {
+    display: block !important;
+  }
+
+  .sidebar.collapsed .nav-link::after,
+  .sidebar.collapsed .nav-link::before {
+    display: none !important;
+  }
+
+  .mobile-menu-btn,
+  .sidebar-toggle-btn {
     display: inline-flex;
   }
 

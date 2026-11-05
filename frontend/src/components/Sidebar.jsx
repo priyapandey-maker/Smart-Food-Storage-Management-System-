@@ -1,9 +1,9 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 
-export default function Sidebar({ isOpen, onClose }) {
+export default function Sidebar({ isOpen, isCollapsed = false, onClose }) {
   const handleNavClick = () => {
-    if (onClose) {
+    if (onClose && typeof window !== 'undefined' && window.innerWidth <= 768) {
       onClose();
     }
   };
@@ -13,10 +13,10 @@ export default function Sidebar({ isOpen, onClose }) {
       {/* Mobile backdrop overlay */}
       {isOpen && <div className="sidebar-backdrop" onClick={onClose} />}
 
-      <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
+      <aside className={`sidebar ${isOpen ? 'open' : ''} ${isCollapsed ? 'collapsed' : ''}`}>
         {/* Brand Header */}
         <div className="sidebar-brand">
-          <div className="brand-icon">
+          <div className="brand-icon" title="FreshGuard">
             <svg
               viewBox="0 0 24 24"
               width="22"
@@ -44,6 +44,8 @@ export default function Sidebar({ isOpen, onClose }) {
             end
             className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
             onClick={handleNavClick}
+            data-tooltip="Dashboard"
+            title={isCollapsed ? 'Dashboard' : undefined}
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
@@ -56,6 +58,8 @@ export default function Sidebar({ isOpen, onClose }) {
             to="/inventory"
             className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
             onClick={handleNavClick}
+            data-tooltip="Food Inventory"
+            title={isCollapsed ? 'Food Inventory' : undefined}
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
@@ -69,6 +73,8 @@ export default function Sidebar({ isOpen, onClose }) {
             to="/checker"
             className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
             onClick={handleNavClick}
+            data-tooltip="Temperature Checker"
+            title={isCollapsed ? 'Temperature Checker' : undefined}
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z" />
@@ -80,6 +86,8 @@ export default function Sidebar({ isOpen, onClose }) {
             to="/alerts"
             className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
             onClick={handleNavClick}
+            data-tooltip="Alerts & History"
+            title={isCollapsed ? 'Alerts & History' : undefined}
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
