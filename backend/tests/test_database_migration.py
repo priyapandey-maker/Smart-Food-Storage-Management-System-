@@ -17,7 +17,13 @@ from app.database import (
 )
 from app.models import ActivityLog, FoodCatalogue, InventoryItem, TemperatureCheck
 from app.seed_data import seed_catalogue_data
-from app.migrate import export_sqlite_records, migrate_records_to_db
+from app.migrate import (
+    auto_preserve_and_migrate,
+    export_sqlite_records,
+    migrate_records_to_db,
+    parse_date,
+    parse_datetime,
+)
 
 
 def test_normalize_database_url_empty():
@@ -187,6 +193,183 @@ def test_timestamp_storage_and_retrieval_timezone():
             db.commit()
 
 
+def test_resumable_partial_migration_simulated_crash(tmp_path):
+    """Simulate a crash during migration after inventory records are committed
+    but before temperature checks and activity logs are imported.
+    Verify subsequent startup resumes migration without duplicating items or
+    overwriting existing user data / soft-deleted records."""
+    test_db_path = tmp_path / "partial_migration_test.db"
+    test_db_url = f"sqlite:///{test_db_path.as_posix()}"
+
+    test_engine = create_engine(test_db_url, connect_args={"check_same_thread": False})
+    Base.metadata.create_all(bind=test_engine)
+    TestSession = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+
+    records = export_sqlite_records()
+    backup_inventory = records.get("inventory_items", [])
+    backup_checks = records.get("temperature_checks", [])
+    backup_logs = records.get("activity_logs", [])
+
+    assert len(backup_inventory) > 0, "Expected backup inventory items"
+    assert len(backup_checks) > 0, "Expected backup temperature checks"
+    assert len(backup_logs) > 0, "Expected backup activity logs"
+
+    # 1. Simulate the partial state: Seed catalogues + insert ONLY inventory items
+    with TestSession() as db:
+        seed_catalogue_data(db)
+
+        # Insert backup inventory items
+        for inv in backup_inventory:
+            item = InventoryItem(
+                id=inv["id"],
+                catalogue_id=inv["catalogue_id"],
+                custom_name=inv.get("custom_name"),
+                quantity=float(inv["quantity"]),
+                unit=inv["unit"],
+                storage_location=inv["storage_location"],
+                purchase_date=parse_date(inv["purchase_date"]),
+                expiry_date=parse_date(inv.get("expiry_date")),
+                created_at=parse_datetime(inv.get("created_at")),
+                is_active=bool(inv.get("is_active", 1)),
+            )
+            db.add(item)
+        db.commit()
+
+        # Simulate user soft-deleting item 2 (if present)
+        item_2 = db.query(InventoryItem).filter(InventoryItem.id == 2).first()
+        if item_2:
+            item_2.is_active = False
+            db.commit()
+
+        # Simulate user adding their own new inventory item (ID 999)
+        user_item = InventoryItem(
+            id=999,
+            catalogue_id=1,
+            custom_name="User Organic Kombucha",
+            quantity=2.0,
+            unit="bottles",
+            storage_location="Refrigerator",
+            purchase_date=datetime.now(timezone.utc).date(),
+            expiry_date=datetime.now(timezone.utc).date(),
+            is_active=True,
+        )
+        db.add(user_item)
+        db.commit()
+
+        # Verify state BEFORE resuming: inventory exists, but 0 checks and 0 logs!
+        assert db.query(InventoryItem).count() >= 2
+        assert db.query(TemperatureCheck).count() == 0
+        assert db.query(ActivityLog).count() == 0
+
+    # 2. Simulate application startup after crash: run auto_preserve_and_migrate
+    with TestSession() as db:
+        res = auto_preserve_and_migrate(db)
+        assert res is not None
+
+        # Inventory was already imported: 0 added, no duplicates!
+        assert res["inventory_added"] == 0
+        # Missing temperature checks and activity logs were completed!
+        assert res["checks_added"] == len(backup_checks)
+        assert res["logs_added"] == len(backup_logs)
+
+        # Verify user data is preserved
+        user_saved = db.query(InventoryItem).filter(InventoryItem.id == 999).first()
+        assert user_saved is not None
+        assert user_saved.custom_name == "User Organic Kombucha"
+
+        # Verify soft-deleted item remains soft-deleted (not overwritten)
+        if item_2:
+            refreshed_2 = db.query(InventoryItem).filter(InventoryItem.id == 2).first()
+            assert refreshed_2 is not None
+            assert refreshed_2.is_active is False
+
+        # Verify total counts
+        assert db.query(InventoryItem).count() == len(backup_inventory) + 1  # backup items + user item
+        assert db.query(TemperatureCheck).count() == len(backup_checks)
+        assert db.query(ActivityLog).count() == len(backup_logs)
+
+    # 3. Simulate another restart: auto_preserve_and_migrate must be completely idempotent
+    with TestSession() as db:
+        res2 = auto_preserve_and_migrate(db)
+        assert res2["catalogues_added"] == 0
+        assert res2["inventory_added"] == 0
+        assert res2["checks_added"] == 0
+        assert res2["logs_added"] == 0
+
+        # Counts remain unchanged
+        assert db.query(InventoryItem).count() == len(backup_inventory) + 1
+        assert db.query(TemperatureCheck).count() == len(backup_checks)
+        assert db.query(ActivityLog).count() == len(backup_logs)
+
+    test_engine.dispose()
+
+
+def test_resumable_partial_inventory_and_history(tmp_path):
+    """Simulate a crash when only SOME inventory items were inserted, leaving remaining
+    inventory items, temperature checks, and activity logs pending."""
+    test_db_path = tmp_path / "partial_inv_test.db"
+    test_db_url = f"sqlite:///{test_db_path.as_posix()}"
+
+    test_engine = create_engine(test_db_url, connect_args={"check_same_thread": False})
+    Base.metadata.create_all(bind=test_engine)
+    TestSession = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+
+    records = export_sqlite_records()
+    backup_inventory = records.get("inventory_items", [])
+    backup_checks = records.get("temperature_checks", [])
+    backup_logs = records.get("activity_logs", [])
+
+    if len(backup_inventory) < 2:
+        pytest.skip("Test requires at least 2 backup inventory items to simulate partial inventory")
+
+    # 1. Insert ONLY the first inventory item (ID 1)
+    first_item_data = backup_inventory[0]
+    with TestSession() as db:
+        seed_catalogue_data(db)
+        first_item = InventoryItem(
+            id=first_item_data["id"],
+            catalogue_id=first_item_data["catalogue_id"],
+            custom_name=first_item_data.get("custom_name"),
+            quantity=float(first_item_data["quantity"]),
+            unit=first_item_data["unit"],
+            storage_location=first_item_data["storage_location"],
+            purchase_date=parse_date(first_item_data["purchase_date"]),
+            expiry_date=parse_date(first_item_data.get("expiry_date")),
+            created_at=parse_datetime(first_item_data.get("created_at")),
+            is_active=bool(first_item_data.get("is_active", 1)),
+        )
+        db.add(first_item)
+        db.commit()
+
+        assert db.query(InventoryItem).count() == 1
+        assert db.query(TemperatureCheck).count() == 0
+        assert db.query(ActivityLog).count() == 0
+
+    # 2. Resume migration on next startup
+    with TestSession() as db:
+        res = auto_preserve_and_migrate(db)
+        assert res is not None
+
+        # The missing inventory item(s) were imported!
+        expected_missing_inv = len(backup_inventory) - 1
+        assert res["inventory_added"] == expected_missing_inv
+        assert res["checks_added"] == len(backup_checks)
+        assert res["logs_added"] == len(backup_logs)
+
+        assert db.query(InventoryItem).count() == len(backup_inventory)
+        assert db.query(TemperatureCheck).count() == len(backup_checks)
+        assert db.query(ActivityLog).count() == len(backup_logs)
+
+    # 3. Subsequent run does nothing
+    with TestSession() as db:
+        res2 = auto_preserve_and_migrate(db)
+        assert res2["inventory_added"] == 0
+        assert res2["checks_added"] == 0
+        assert res2["logs_added"] == 0
+
+    test_engine.dispose()
+
+
 @pytest.mark.skipif(
     not os.getenv("DATABASE_URL") or "postgresql" not in os.getenv("DATABASE_URL", ""),
     reason="Live PostgreSQL integration test requires DATABASE_URL with postgresql protocol",
@@ -205,5 +388,3 @@ def test_live_postgres_verification():
     assert res["foreign_keys_enforced"] is True
     assert res["persisted_across_reconnect"] is True
     assert res["cleanup_successful"] is True
-
-

@@ -1,7 +1,7 @@
 """Database migration and data preservation utility for FreshGuard.
 
 Supports exporting records from local SQLite and migrating them idempotently
-into a target PostgreSQL (Neon) database while preserving primary keys,
+and resumably into a target PostgreSQL (Neon) database while preserving primary keys,
 foreign key relationships, and synchronizing PostgreSQL sequences.
 """
 
@@ -153,13 +153,18 @@ def migrate_records_to_db(
         else:
             cat_id_mapping[item["id"]] = existing_cat_names[name]
 
-    db.commit()
+    try:
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        logger.error("Failed to commit food catalogues during migration: %s", exc)
+        raise
 
     # 3. Migrate inventory items
     existing_inv_ids = {inv.id for inv in db.query(InventoryItem.id).all()}
     for inv in records.get("inventory_items", []):
-        old_id = inv["id"]
-        if old_id not in existing_inv_ids:
+        old_id = inv.get("id")
+        if old_id is not None and old_id not in existing_inv_ids:
             target_cat_id = cat_id_mapping.get(inv["catalogue_id"], inv["catalogue_id"])
             item = InventoryItem(
                 id=old_id,
@@ -176,15 +181,20 @@ def migrate_records_to_db(
             db.add(item)
             stats["inventory_added"] += 1
 
-    db.commit()
+    try:
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        logger.error("Failed to commit inventory items during migration: %s", exc)
+        raise
 
     # 4. Migrate temperature checks
     existing_check_ids = {tc.id for tc in db.query(TemperatureCheck.id).all()}
     current_inv_ids = {inv.id for inv in db.query(InventoryItem.id).all()}
 
     for tc in records.get("temperature_checks", []):
-        check_id = tc["id"]
-        if check_id not in existing_check_ids and tc["inventory_id"] in current_inv_ids:
+        check_id = tc.get("id")
+        if check_id is not None and check_id not in existing_check_ids and tc.get("inventory_id") in current_inv_ids:
             check = TemperatureCheck(
                 id=check_id,
                 inventory_id=tc["inventory_id"],
@@ -197,13 +207,18 @@ def migrate_records_to_db(
             db.add(check)
             stats["checks_added"] += 1
 
-    db.commit()
+    try:
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        logger.error("Failed to commit temperature checks during migration: %s", exc)
+        raise
 
     # 5. Migrate activity logs
     existing_log_ids = {log.id for log in db.query(ActivityLog.id).all()}
     for log in records.get("activity_logs", []):
-        log_id = log["id"]
-        if log_id not in existing_log_ids:
+        log_id = log.get("id")
+        if log_id is not None and log_id not in existing_log_ids:
             activity = ActivityLog(
                 id=log_id,
                 action_type=log["action_type"],
@@ -213,7 +228,12 @@ def migrate_records_to_db(
             db.add(activity)
             stats["logs_added"] += 1
 
-    db.commit()
+    try:
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        logger.error("Failed to commit activity logs during migration: %s", exc)
+        raise
 
     # 6. Synchronize sequences if target is PostgreSQL
     sync_postgres_sequences(db)
@@ -223,18 +243,51 @@ def migrate_records_to_db(
 
 
 def auto_preserve_and_migrate(db: Session, sqlite_path: Optional[Path] = None) -> Optional[Dict[str, int]]:
-    """Automatically preserve and migrate SQLite records if the target database has no inventory items."""
-    # Check if target database already has inventory items
-    active_count = db.query(InventoryItem).count()
-    if active_count > 0:
-        logger.info("Target database already contains %d inventory items. Skipping auto-migration.", active_count)
+    """Automatically preserve and migrate SQLite records idempotently and resumably.
+
+    Ensures that any missing catalogue entries, inventory items, temperature checks,
+    and activity logs from the source backup are safely imported, even if a previous
+    migration run was interrupted or only partially completed. Existing user data and
+    soft-deleted items are never overwritten or duplicated.
+    """
+    records = export_sqlite_records(sqlite_path)
+    if not records or not any(records.values()):
+        logger.info("No records found to migrate.")
         return None
 
-    logger.info("Target database has 0 inventory items. Checking for existing SQLite records to preserve...")
-    records = export_sqlite_records(sqlite_path)
-    if records.get("inventory_items"):
-        return migrate_records_to_db(records, db)
-    return None
+    # Inspect current database IDs to determine what is already present
+    existing_cat_names = {cat.name for cat in db.query(FoodCatalogue.name).all()}
+    existing_inv_ids = {inv.id for inv in db.query(InventoryItem.id).all()}
+    existing_check_ids = {tc.id for tc in db.query(TemperatureCheck.id).all()}
+    existing_log_ids = {log.id for log in db.query(ActivityLog.id).all()}
+
+    missing_cats = [c for c in records.get("food_catalogues", []) if c.get("name") not in existing_cat_names]
+    missing_inv = [inv for inv in records.get("inventory_items", []) if inv.get("id") not in existing_inv_ids]
+    missing_checks = [tc for tc in records.get("temperature_checks", []) if tc.get("id") not in existing_check_ids]
+    missing_logs = [log for log in records.get("activity_logs", []) if log.get("id") not in existing_log_ids]
+
+    if not missing_cats and not missing_inv and not missing_checks and not missing_logs:
+        logger.info(
+            "Target database already contains all backup records (%d inv, %d checks, %d logs). Skipping auto-migration.",
+            len(existing_inv_ids),
+            len(existing_check_ids),
+            len(existing_log_ids),
+        )
+        return {
+            "catalogues_added": 0,
+            "inventory_added": 0,
+            "checks_added": 0,
+            "logs_added": 0,
+        }
+
+    logger.info(
+        "Pending migration detected: %d catalogues, %d inventory items, %d temperature checks, %d activity logs missing. Resuming migration...",
+        len(missing_cats),
+        len(missing_inv),
+        len(missing_checks),
+        len(missing_logs),
+    )
+    return migrate_records_to_db(records, db)
 
 
 if __name__ == "__main__":
