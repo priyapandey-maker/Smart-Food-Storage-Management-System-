@@ -55,7 +55,7 @@ class InventoryItem(Base):
     storage_location = Column(String(100), nullable=False)
     purchase_date = Column(Date, nullable=False)
     expiry_date = Column(Date, nullable=True)
-    created_at = Column(DateTime, default=get_utc_now, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=get_utc_now, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
 
     # Relationships
@@ -77,7 +77,7 @@ class TemperatureCheck(Base):
     status = Column(String(50), nullable=False)  # WITHIN_LIMIT, ABOVE_LIMIT
     message = Column(Text, nullable=False)
     is_simulated = Column(Boolean, default=False, nullable=False)
-    checked_at = Column(DateTime, default=get_utc_now, nullable=False)
+    checked_at = Column(DateTime(timezone=True), default=get_utc_now, nullable=False)
 
     # Relationship
     inventory_item = relationship("InventoryItem", back_populates="temperature_checks")
@@ -91,5 +91,5 @@ class ActivityLog(Base):
     id = Column(Integer, primary_key=True, index=True)
     action_type = Column(String(100), nullable=False)
     description = Column(Text, nullable=False)
-    created_at = Column(DateTime, default=get_utc_now, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=get_utc_now, nullable=False)
 

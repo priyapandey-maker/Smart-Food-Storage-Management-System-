@@ -150,3 +150,60 @@ def test_persistence_across_restart(tmp_path):
 
     restarted_engine.dispose()
 
+
+def test_models_use_timezone_aware_datetime():
+    """Verify models define DateTime(timezone=True) for PostgreSQL compatibility."""
+    assert InventoryItem.created_at.type.timezone is True
+    assert TemperatureCheck.checked_at.type.timezone is True
+    assert ActivityLog.created_at.type.timezone is True
+
+
+def test_timestamp_storage_and_retrieval_timezone():
+    """Verify timezone-aware datetimes store and retrieve properly."""
+    with SessionLocal() as db:
+        utc_now = datetime.now(timezone.utc)
+        item = InventoryItem(
+            catalogue_id=1,
+            custom_name="Timezone Test Item",
+            quantity=1.0,
+            unit="pieces",
+            storage_location="Refrigerator",
+            purchase_date=utc_now.date(),
+            expiry_date=utc_now.date(),
+            created_at=utc_now,
+            is_active=False,
+        )
+        db.add(item)
+        db.commit()
+        db.refresh(item)
+        saved_id = item.id
+
+        try:
+            fetched = db.query(InventoryItem).filter(InventoryItem.id == saved_id).first()
+            assert fetched is not None
+            assert fetched.created_at is not None
+        finally:
+            db.query(InventoryItem).filter(InventoryItem.id == saved_id).delete()
+            db.commit()
+
+
+@pytest.mark.skipif(
+    not os.getenv("DATABASE_URL") or "postgresql" not in os.getenv("DATABASE_URL", ""),
+    reason="Live PostgreSQL integration test requires DATABASE_URL with postgresql protocol",
+)
+def test_live_postgres_verification():
+    """Execute full non-destructive live verification when DATABASE_URL points to PostgreSQL."""
+    from app.verify_postgres import run_postgres_verification
+
+    res = run_postgres_verification()
+    assert res["connected"] is True
+    assert res["tables_verified"] is True
+    assert res["catalogue_seeded"] is True
+    assert res["inventory_created"] is True
+    assert res["temperature_check_created"] is True
+    assert res["timestamp_timezone_aware"] is True
+    assert res["foreign_keys_enforced"] is True
+    assert res["persisted_across_reconnect"] is True
+    assert res["cleanup_successful"] is True
+
+
